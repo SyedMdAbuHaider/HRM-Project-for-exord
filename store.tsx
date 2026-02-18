@@ -12,9 +12,14 @@ interface HRMContextType {
   salaries: SalaryRecord[];
   auditLogs: AuditLog[];
   gpsLogs: GPSLog[];
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
-  register: (name: string, email: string, password: string, userId: string) => Promise<{ success: boolean; message: string }>;
+  theme: 'light' | 'dark';
+  isTracking: boolean;
+  toggleTheme: () => void;
+  setTracking: (active: boolean) => void;
+  login: (identifier: string, password: string, role: UserRole) => Promise<boolean>;
+  register: (name: string, email: string, password: string, userId: string, department: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
+  updateUser: (id: string, updates: Partial<User>) => void;
   checkIn: (lat: number, lng: number, accuracy: number, ip: string) => Promise<{ success: boolean; message: string }>;
   checkOut: (lat: number, lng: number, accuracy: number, ip: string) => Promise<{ success: boolean; message: string }>;
   applyLeave: (leave: Omit<LeaveRequest, 'id' | 'status' | 'userName'>) => void;
@@ -33,6 +38,29 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [salaries, setSalaries] = useState<SalaryRecord[]>(mockSalaries);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(mockAuditLogs);
   const [gpsLogs, setGpsLogs] = useState<GPSLog[]>([]);
+  const [isTracking, setIsTracking] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('exord-theme');
+    return (saved as 'light' | 'dark') || 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('exord-theme', theme);
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  }, []);
+
+  const setTracking = useCallback((active: boolean) => {
+    setIsTracking(active);
+  }, []);
 
   const addAuditLog = useCallback((action: string, details: string, severity: AuditLog['severity']) => {
     const newLog: AuditLog = {
@@ -47,58 +75,71 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuditLogs(prev => [newLog, ...prev].slice(0, 1000));
   }, [currentUser]);
 
-  const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
-    const user = users.find(u => u.email === email && u.password === password && u.role === role);
+  const login = async (identifier: string, password: string, role: UserRole): Promise<boolean> => {
+    const user = users.find(u => 
+      (u.email === identifier || u.id.toUpperCase() === identifier.toUpperCase()) && 
+      u.password === password && 
+      u.role === role
+    );
+    
     if (user) {
       setCurrentUser(user);
-      addAuditLog('USER_LOGIN', `User ${user.name} logged in`, 'LOW');
+      addAuditLog('USER_LOGIN', `Node ${user.id} authenticated.`, 'LOW');
       return true;
     }
-    addAuditLog('FAILED_LOGIN', `Failed login attempt for ${email}`, 'MEDIUM');
+    addAuditLog('FAILED_LOGIN', `Unauthorized access attempt: ${identifier}`, 'MEDIUM');
     return false;
   };
 
-  const register = async (name: string, email: string, password: string, userId: string) => {
-    if (users.find(u => u.id === userId || u.email === email)) {
-      return { success: false, message: 'User ID or Email already registered.' };
+  const register = async (name: string, email: string, password: string, userId: string, department: string) => {
+    const normalizedId = userId.toUpperCase();
+    if (!/^E\d{4}$/.test(normalizedId)) {
+      return { success: false, message: 'ID Format Mismatch. Use EXXXX.' };
+    }
+
+    if (users.find(u => u.id === normalizedId || u.email === email)) {
+      return { success: false, message: 'Node collision. ID or Email already exists.' };
     }
 
     const newUser: User = {
-      id: userId,
+      id: normalizedId,
       name,
       email,
       password,
       role: UserRole.EMPLOYEE,
-      department: 'General Staff',
-      baseSalary: 35000, // Default 35,000 TK
-      deviceId: `DEV-${userId}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+      department: department,
+      baseSalary: 45000, 
+      deviceId: `DEV-${normalizedId}`,
       officeLocation: { lat: 40.7128, lng: -74.0060 }
     };
 
     setUsers(prev => [...prev, newUser]);
-    addAuditLog('USER_REGISTER', `New staff account provisioned: ${name} (${userId})`, 'LOW');
-    return { success: true, message: 'Account registered successfully. Use your credentials to log in.' };
+    addAuditLog('USER_REGISTER', `New node provisioned: ${normalizedId} in ${department}`, 'LOW');
+    return { success: true, message: `Node initialized for ${normalizedId}.` };
   };
 
   const logout = () => {
-    addAuditLog('USER_LOGOUT', 'User session terminated', 'LOW');
+    addAuditLog('USER_LOGOUT', 'Session terminated.', 'LOW');
     setCurrentUser(null);
+    setIsTracking(false);
   };
 
+  const updateUser = useCallback((id: string, updates: Partial<User>) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    addAuditLog('USER_UPDATE', `Admin override on node ${id}`, 'MEDIUM');
+  }, [addAuditLog]);
+
   const checkIn = async (lat: number, lng: number, accuracy: number, ip: string) => {
-    if (!currentUser) return { success: false, message: 'Not authenticated' };
-
-    const inOfficeRange = isWithinOfficeRadius(lat, lng);
-    const inOfficeSubnet = isOfficeIp(ip);
-
-    if (!inOfficeSubnet) {
-      addAuditLog('ATTENDANCE_DENIED', `Check-in rejected: Outside network (${ip})`, 'MEDIUM');
-      return { success: false, message: 'Unauthorized Network. Access restricted to Exord Office WiFi.' };
+    if (!currentUser) return { success: false, message: 'Auth Required.' };
+    
+    if (!isOfficeIp(ip)) {
+      addAuditLog('ATTENDANCE_FAILED', 'Network restricted access denied.', 'MEDIUM');
+      return { success: false, message: 'Network Mismatch. Please connect to Office Fiber.' };
     }
 
-    if (!inOfficeRange) {
-      addAuditLog('ATTENDANCE_DENIED', `Check-in rejected: Outside geo-fence`, 'MEDIUM');
-      return { success: false, message: 'Verification failed. Device detected outside authorized perimeter.' };
+    if (!isWithinOfficeRadius(lat, lng)) {
+      addAuditLog('ATTENDANCE_FAILED', 'Geofence breach on check-in.', 'MEDIUM');
+      return { success: false, message: 'Geofence Breach. Move to HQ perimeter.' };
     }
 
     const newRecord: AttendanceRecord = {
@@ -112,13 +153,12 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setAttendance(prev => [...prev, newRecord]);
-    addAuditLog('ATTENDANCE_SUCCESS', 'User verified and checked in', 'LOW');
-    return { success: true, message: 'Identity verified. Duty session started.' };
+    addAuditLog('ATTENDANCE_SUCCESS', 'Node linked to duty cycle.', 'LOW');
+    return { success: true, message: 'Node synced. Welcome to Exord HQ.' };
   };
 
   const checkOut = async (lat: number, lng: number, accuracy: number, ip: string) => {
-    if (!currentUser) return { success: false, message: 'Not authenticated' };
-    
+    if (!currentUser) return { success: false, message: 'Auth Required.' };
     const newRecord: AttendanceRecord = {
       id: Math.random().toString(36).substr(2, 9),
       userId: currentUser.id,
@@ -128,10 +168,8 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ipAddress: ip,
       status: 'SUCCESS'
     };
-
     setAttendance(prev => [...prev, newRecord]);
-    addAuditLog('ATTENDANCE_SUCCESS', 'User checked out', 'LOW');
-    return { success: true, message: 'Duty session ended successfully.' };
+    return { success: true, message: 'Duty sequence ended.' };
   };
 
   const applyLeave = (leave: Omit<LeaveRequest, 'id' | 'status' | 'userName'>) => {
@@ -149,13 +187,13 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addGPSLog = useCallback((log: GPSLog) => {
-    setGpsLogs(prev => [...prev, log].slice(-1000));
+    setGpsLogs(prev => [...prev, log].slice(-5000));
   }, []);
 
   return (
     <HRMContext.Provider value={{
-      currentUser, users, attendance, leaves, salaries, auditLogs, gpsLogs,
-      login, register, logout, checkIn, checkOut, applyLeave, updateLeave, addAuditLog, addGPSLog
+      currentUser, users, attendance, leaves, salaries, auditLogs, gpsLogs, theme, toggleTheme, isTracking, setTracking,
+      login, register, logout, updateUser, checkIn, checkOut, applyLeave, updateLeave, addAuditLog, addGPSLog
     }}>
       {children}
     </HRMContext.Provider>

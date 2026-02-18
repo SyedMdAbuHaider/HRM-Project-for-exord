@@ -3,7 +3,7 @@ import { User, UserRole, LeaveStatus, AttendanceRecord, LeaveRequest, SalaryReco
 
 export const mockUsers: User[] = [
   {
-    id: 'admin-002',
+    id: 'E0001',
     name: 'Exord Administrator',
     email: 'admin@exordonline.com',
     password: 'exord@3214',
@@ -14,7 +14,7 @@ export const mockUsers: User[] = [
     officeLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
-    id: 'admin-001',
+    id: 'E0002',
     name: 'Sarah Connor',
     email: 'admin@securewfm.com',
     password: 'password123',
@@ -25,7 +25,7 @@ export const mockUsers: User[] = [
     officeLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
-    id: 'emp-001',
+    id: 'E1001',
     name: 'John Smith',
     email: 'john.smith@securewfm.com',
     password: 'password123',
@@ -36,7 +36,7 @@ export const mockUsers: User[] = [
     officeLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
-    id: 'emp-002',
+    id: 'E1002',
     name: 'Emily Davis',
     email: 'emily.d@securewfm.com',
     password: 'password123',
@@ -51,7 +51,7 @@ export const mockUsers: User[] = [
 export const mockAttendance: AttendanceRecord[] = [
   {
     id: 'att-1',
-    userId: 'emp-001',
+    userId: 'E1001',
     timestamp: new Date().toISOString(),
     type: 'CHECK_IN',
     location: { lat: 40.7127, lng: -74.0059, accuracy: 5 },
@@ -63,7 +63,7 @@ export const mockAttendance: AttendanceRecord[] = [
 export const mockLeaves: LeaveRequest[] = [
   {
     id: 'lv-1',
-    userId: 'emp-001',
+    userId: 'E1001',
     userName: 'John Smith',
     startDate: '2024-06-10',
     endDate: '2024-06-15',
@@ -76,7 +76,7 @@ export const mockLeaves: LeaveRequest[] = [
 export const mockSalaries: SalaryRecord[] = [
   {
     id: 'sal-1',
-    userId: 'emp-001',
+    userId: 'E1001',
     userName: 'John Smith',
     month: 'May',
     year: 2024,
@@ -92,8 +92,8 @@ export const mockAuditLogs: AuditLog[] = [
   {
     id: 'audit-1',
     timestamp: new Date().toISOString(),
-    userId: 'admin-001',
-    userName: 'Sarah Connor',
+    userId: 'E0001',
+    userName: 'Exord Administrator',
     action: 'USER_LOGIN',
     details: 'Admin logged in from 192.168.1.1',
     severity: 'LOW'
