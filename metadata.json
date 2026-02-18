@@ -1,0 +1,7 @@
+{
+  "name": "Exord Online HRM",
+  "description": "Enterprise-grade secure HRM system for Exord Online. Features local IP restricted attendance, GPS tracking, and AI-powered security auditing.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
