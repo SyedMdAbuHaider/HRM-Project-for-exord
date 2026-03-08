@@ -25,6 +25,17 @@ export const mockUsers: User[] = [
     officeLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
+    id: 'E0003',
+    name: 'HR Manager',
+    email: 'hr@exordonline.com',
+    password: 'hr@password',
+    role: UserRole.HR,
+    department: 'Human Resources',
+    baseSalary: 95000,
+    deviceId: 'DEV-HR-001',
+    officeLocation: { lat: 40.7128, lng: -74.0060 }
+  },
+  {
     id: 'E1001',
     name: 'John Smith',
     email: 'john.smith@securewfm.com',

@@ -40,7 +40,7 @@ const MainApp: React.FC = () => {
   // When user logs in, set initial view
   useEffect(() => {
     if (currentUser) {
-      setActiveView(currentUser.role === UserRole.ADMIN ? 'dashboard' : 'portal');
+      setActiveView(currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.HR ? 'dashboard' : 'portal');
     }
   }, [currentUser]);
 
@@ -103,6 +103,7 @@ const MainApp: React.FC = () => {
               {!isRegistering && (
                 <div className="p-1 bg-slate-200/80 dark:bg-slate-800 rounded-2xl flex gap-1 shadow-inner border border-slate-300 dark:border-slate-700">
                   <button type="button" onClick={() => setRole(UserRole.EMPLOYEE)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.EMPLOYEE ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Staff</button>
+                  <button type="button" onClick={() => setRole(UserRole.HR)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.HR ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>HR</button>
                   <button type="button" onClick={() => setRole(UserRole.ADMIN)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.ADMIN ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Admin</button>
                 </div>
               )}

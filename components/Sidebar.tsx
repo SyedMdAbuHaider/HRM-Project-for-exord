@@ -50,7 +50,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
     { id: 'leaves', icon: Calendar, label: 'Leave Center' },
   ];
 
-  const links = currentUser?.role === UserRole.ADMIN ? adminLinks : employeeLinks;
+  const hrLinks = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Control Center' },
+    { id: 'employees', icon: Users, label: 'Workforce Hub' },
+    { id: 'attendance', icon: Clock, label: 'Shift Logs' },
+    { id: 'payroll', icon: DollarSign, label: 'Remuneration' },
+    { id: 'leaves', icon: Calendar, label: 'Request Vault' },
+  ];
+
+  const links = currentUser?.role === UserRole.ADMIN 
+    ? adminLinks 
+    : currentUser?.role === UserRole.HR 
+      ? hrLinks 
+      : employeeLinks;
 
   return (
     <div className={`

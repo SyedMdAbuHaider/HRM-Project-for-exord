@@ -1,6 +1,7 @@
 
 export enum UserRole {
   ADMIN = 'ADMIN',
+  HR = 'HR',
   EMPLOYEE = 'EMPLOYEE'
 }
 
@@ -24,6 +25,12 @@ export interface User {
     lat: number;
     lng: number;
   };
+  fatherName?: string;
+  motherName?: string;
+  nid?: string;
+  presentAddress?: string;
+  permanentAddress?: string;
+  documents?: string[];
 }
 
 export interface AttendanceRecord {

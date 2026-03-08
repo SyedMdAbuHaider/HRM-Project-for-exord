@@ -20,6 +20,7 @@ interface HRMContextType {
   register: (name: string, email: string, password: string, userId: string, department: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   updateUser: (id: string, updates: Partial<User>) => void;
+  createEmployee: (employeeData: Omit<User, 'role' | 'officeLocation' | 'deviceId'>) => Promise<{ success: boolean; message: string }>;
   checkIn: (lat: number, lng: number, accuracy: number, ip: string) => Promise<{ success: boolean; message: string }>;
   checkOut: (lat: number, lng: number, accuracy: number, ip: string) => Promise<{ success: boolean; message: string }>;
   applyLeave: (leave: Omit<LeaveRequest, 'id' | 'status' | 'userName'>) => void;
@@ -129,6 +130,29 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAuditLog('USER_UPDATE', `Admin override on node ${id}`, 'MEDIUM');
   }, [addAuditLog]);
 
+  const createEmployee = async (employeeData: Omit<User, 'role' | 'officeLocation' | 'deviceId'>) => {
+    const normalizedId = employeeData.id.toUpperCase();
+    if (!/^E\d{4}$/.test(normalizedId)) {
+      return { success: false, message: 'ID Format Mismatch. Use EXXXX.' };
+    }
+
+    if (users.find(u => u.id === normalizedId || u.email === employeeData.email)) {
+      return { success: false, message: 'Node collision. ID or Email already exists.' };
+    }
+
+    const newUser: User = {
+      ...employeeData,
+      id: normalizedId,
+      role: UserRole.EMPLOYEE,
+      deviceId: `DEV-${normalizedId}`,
+      officeLocation: { lat: 40.7128, lng: -74.0060 }
+    };
+
+    setUsers(prev => [...prev, newUser]);
+    addAuditLog('USER_CREATE', `New employee created by ${currentUser?.name}: ${normalizedId}`, 'MEDIUM');
+    return { success: true, message: `Employee ${normalizedId} created successfully.` };
+  };
+
   const checkIn = async (lat: number, lng: number, accuracy: number, ip: string) => {
     if (!currentUser) return { success: false, message: 'Auth Required.' };
     
@@ -193,7 +217,7 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <HRMContext.Provider value={{
       currentUser, users, attendance, leaves, salaries, auditLogs, gpsLogs, theme, toggleTheme, isTracking, setTracking,
-      login, register, logout, updateUser, checkIn, checkOut, applyLeave, updateLeave, addAuditLog, addGPSLog
+      login, register, logout, updateUser, createEmployee, checkIn, checkOut, applyLeave, updateLeave, addAuditLog, addGPSLog
     }}>
       {children}
     </HRMContext.Provider>
