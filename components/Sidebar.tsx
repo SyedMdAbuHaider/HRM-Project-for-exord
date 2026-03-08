@@ -36,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
   const adminLinks = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Control Center' },
     { id: 'employees', icon: Users, label: 'Workforce Hub' },
+    { id: 'infrastructure', icon: Map, label: 'Infrastructure' },
     { id: 'attendance', icon: Clock, label: 'Shift Logs' },
     { id: 'tracking', icon: Map, label: 'Field Mapping' },
     { id: 'payroll', icon: DollarSign, label: 'Remuneration' },
@@ -53,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
   const hrLinks = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Control Center' },
     { id: 'employees', icon: Users, label: 'Workforce Hub' },
+    { id: 'infrastructure', icon: Map, label: 'Infrastructure' },
     { id: 'attendance', icon: Clock, label: 'Shift Logs' },
     { id: 'payroll', icon: DollarSign, label: 'Remuneration' },
     { id: 'leaves', icon: Calendar, label: 'Request Vault' },

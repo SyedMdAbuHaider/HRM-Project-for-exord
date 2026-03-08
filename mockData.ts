@@ -1,5 +1,30 @@
 
-import { User, UserRole, LeaveStatus, AttendanceRecord, LeaveRequest, SalaryRecord, AuditLog } from './types';
+import { User, UserRole, LeaveStatus, AttendanceRecord, LeaveRequest, SalaryRecord, AuditLog, Unit, Department } from './types';
+
+export const mockUnits: Unit[] = [
+  {
+    id: 'UNIT-001',
+    name: 'Exord HQ - Dhaka',
+    lat: 23.8103,
+    lng: 90.4125,
+    radius: 50
+  },
+  {
+    id: 'UNIT-002',
+    name: 'Exord Branch - Chittagong',
+    lat: 22.3569,
+    lng: 91.7832,
+    radius: 50
+  }
+];
+
+export const mockDepartments: Department[] = [
+  { id: 'DEPT-001', name: 'Network Operations', unitId: 'UNIT-001' },
+  { id: 'DEPT-002', name: 'Customer Support', unitId: 'UNIT-001' },
+  { id: 'DEPT-003', name: 'Sales', unitId: 'UNIT-002' },
+  { id: 'DEPT-004', name: 'Administration', unitId: 'UNIT-001' },
+  { id: 'DEPT-005', name: 'Field Engineering', unitId: 'UNIT-002' }
+];
 
 export const mockUsers: User[] = [
   {
@@ -11,7 +36,7 @@ export const mockUsers: User[] = [
     department: 'Management',
     baseSalary: 150000,
     deviceId: 'DEV-EXORD-001',
-    officeLocation: { lat: 40.7128, lng: -74.0060 }
+    unitLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
     id: 'E0002',
@@ -22,7 +47,7 @@ export const mockUsers: User[] = [
     department: 'Executive',
     baseSalary: 120000,
     deviceId: 'DEV-ADMIN-001',
-    officeLocation: { lat: 40.7128, lng: -74.0060 }
+    unitLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
     id: 'E0003',
@@ -33,7 +58,7 @@ export const mockUsers: User[] = [
     department: 'Human Resources',
     baseSalary: 95000,
     deviceId: 'DEV-HR-001',
-    officeLocation: { lat: 40.7128, lng: -74.0060 }
+    unitLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
     id: 'E1001',
@@ -44,7 +69,7 @@ export const mockUsers: User[] = [
     department: 'Engineering',
     baseSalary: 85000,
     deviceId: 'DEV-SMITH-442',
-    officeLocation: { lat: 40.7128, lng: -74.0060 }
+    unitLocation: { lat: 40.7128, lng: -74.0060 }
   },
   {
     id: 'E1002',
@@ -55,7 +80,7 @@ export const mockUsers: User[] = [
     department: 'Sales',
     baseSalary: 75000,
     deviceId: 'DEV-DAVIS-991',
-    officeLocation: { lat: 40.7128, lng: -74.0060 }
+    unitLocation: { lat: 40.7128, lng: -74.0060 }
   }
 ];
 

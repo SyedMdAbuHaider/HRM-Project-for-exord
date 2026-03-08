@@ -1,15 +1,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useHRM } from '../store';
-import { MapPin, Wifi, ShieldCheck, Clock, Send, AlertTriangle, Globe, ChevronRight, Fingerprint, MapPinned, Activity, Zap, Layers, DollarSign, Calendar, Navigation, ShieldAlert, Crosshair } from 'lucide-react';
+import { MapPin, Wifi, ShieldCheck, Clock, Send, AlertTriangle, Globe, ChevronRight, Fingerprint, MapPinned, Activity, Zap, Layers, DollarSign, Calendar, Navigation, ShieldAlert, Crosshair, Building2 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../utils';
 
 const EmployeePortal: React.FC = () => {
-  const { currentUser, checkIn, checkOut, attendance, addGPSLog, isTracking, setTracking, addAuditLog } = useHRM();
+  const { currentUser, checkIn, checkOut, attendance, addGPSLog, isTracking, setTracking, addAuditLog, units, departments } = useHRM();
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [mockIp, setMockIp] = useState('192.168.1.52');
   const watchIdRef = useRef<number | null>(null);
+
+  const userDept = departments.find(d => d.name === currentUser?.department);
+  const unit = userDept ? units.find(u => u.id === userDept.unitId) : units[0];
 
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -97,6 +100,10 @@ const EmployeePortal: React.FC = () => {
               </div>
               <h2 className="text-2xl font-black tracking-tight mt-1">{currentUser?.name}</h2>
               <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{currentUser?.department}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Building2 size={10} className="text-[#E31E24]" />
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{unit?.name}</p>
+              </div>
             </div>
           </div>
 
@@ -111,7 +118,7 @@ const EmployeePortal: React.FC = () => {
              <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Network</p>
                 <div className={`flex items-center gap-2 font-black text-xs ${mockIp.startsWith('192.168.1') ? 'text-blue-400' : 'text-amber-400'}`}>
-                   <Wifi size={14} /> {mockIp.startsWith('192.168.1') ? 'Office LAN' : 'External'}
+                   <Wifi size={14} /> {mockIp.startsWith('192.168.1') ? 'Unit LAN' : 'External'}
                 </div>
              </div>
           </div>
@@ -140,7 +147,7 @@ const EmployeePortal: React.FC = () => {
             </div>
             <div className="text-center">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white">Sync Check-In</p>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Start Duty Sequence</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Unit Radius: {unit?.radius || 50}m</p>
             </div>
           </button>
 
@@ -196,7 +203,7 @@ const EmployeePortal: React.FC = () => {
               <Activity size={14} /> Node Simulation Tools
            </h4>
            <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
-              <button onClick={() => setMockIp('192.168.1.1')} className={`flex-shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all ${mockIp.startsWith('192.168.1') ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 dark:bg-slate-800'}`}>Office WiFi</button>
+              <button onClick={() => setMockIp('192.168.1.1')} className={`flex-shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all ${mockIp.startsWith('192.168.1') ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 dark:bg-slate-800'}`}>Unit WiFi</button>
               <button onClick={() => setMockIp('10.0.0.1')} className={`flex-shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all ${!mockIp.startsWith('192.168.1') ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 dark:bg-slate-800'}`}>Public 4G</button>
            </div>
         </div>

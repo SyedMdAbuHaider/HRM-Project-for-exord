@@ -21,7 +21,7 @@ export interface User {
   baseSalary: number;
   department: string;
   deviceId: string;
-  officeLocation: {
+  unitLocation: {
     lat: number;
     lng: number;
   };
@@ -31,6 +31,21 @@ export interface User {
   presentAddress?: string;
   permanentAddress?: string;
   documents?: string[];
+  mustChangePassword?: boolean;
+}
+
+export interface Unit {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  radius: number;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  unitId: string;
 }
 
 export interface AttendanceRecord {

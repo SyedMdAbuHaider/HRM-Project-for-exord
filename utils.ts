@@ -1,5 +1,5 @@
 
-import { OFFICE_CONFIG } from './constants';
+import { UNIT_CONFIG } from './constants';
 
 /**
  * Calculates distance between two coordinates using Haversine formula
@@ -20,23 +20,23 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 };
 
 /**
- * Validates if an IP address belongs to the office subnet
+ * Validates if an IP address belongs to the unit subnet
  */
-export const isOfficeIp = (ip: string): boolean => {
-  return ip.startsWith(OFFICE_CONFIG.IP_SUBNET);
+export const isUnitIp = (ip: string): boolean => {
+  return ip.startsWith(UNIT_CONFIG.IP_SUBNET);
 };
 
 /**
  * Validates geo-fencing requirements
  */
-export const isWithinOfficeRadius = (lat: number, lng: number): boolean => {
+export const isWithinUnitRadius = (lat: number, lng: number): boolean => {
   const dist = calculateDistance(
     lat,
     lng,
-    OFFICE_CONFIG.LOCATION.lat,
-    OFFICE_CONFIG.LOCATION.lng
+    UNIT_CONFIG.LOCATION.lat,
+    UNIT_CONFIG.LOCATION.lng
   );
-  return dist <= OFFICE_CONFIG.RADIUS_METERS;
+  return dist <= UNIT_CONFIG.RADIUS_METERS;
 };
 
 /**

@@ -11,7 +11,8 @@ import SecurityLogs from './views/SecurityLogs';
 import WorkforceView from './views/WorkforceView';
 import PayrollView from './views/PayrollView';
 import LeavesView from './views/LeavesView';
-import { ShieldAlert, KeyRound, Mail, Globe, Menu, X, Bell, Search, User as UserIcon, CheckCircle2, ArrowRight, Hash, Sun, Moon, Briefcase } from 'lucide-react';
+import InfrastructureView from './views/InfrastructureView';
+import { ShieldAlert, KeyRound, Mail, Globe, Menu, X, Bell, Search, User as UserIcon, CheckCircle2, ArrowRight, Hash, Sun, Moon, Briefcase, Building2 } from 'lucide-react';
 
 const ExordLogo: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -21,19 +22,16 @@ const ExordLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const MainApp: React.FC = () => {
-  const { currentUser, login, register, theme, toggleTheme } = useHRM();
+  const { currentUser, login, changePassword, theme, toggleTheme, logout } = useHRM();
   const [activeView, setActiveView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
   
   const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [userId, setUserId] = useState(''); 
-  const [email, setEmail] = useState(''); 
-  const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [role, setRole] = useState<UserRole>(UserRole.EMPLOYEE);
   
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -49,18 +47,34 @@ const MainApp: React.FC = () => {
     setError('');
     setSuccessMsg('');
 
-    if (isRegistering) {
-      const res = await register(name, email, password, userId, department);
-      if (res.success) {
-        setSuccessMsg(res.message);
-        setIsRegistering(false);
-        setIdentifier(userId.toUpperCase());
-      } else {
-        setError(res.message);
-      }
+    const success = await login(identifier, password, role);
+    if (!success) setError('Access Denied. Node credentials invalid.');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (newPassword.length < 8) {
+      setError('Security Protocol Violation: Password must be at least 8 characters.');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setError('Credential Mismatch: Passwords do not match.');
+      return;
+    }
+
+    const res = await changePassword(newPassword);
+    if (res.success) {
+      setSuccessMsg('Security Protocol Updated. Syncing node...');
+      setTimeout(() => {
+        setSuccessMsg('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }, 2000);
     } else {
-      const success = await login(identifier, password, role);
-      if (!success) setError('Access Denied. Node credentials invalid.');
+      setError(res.message);
     }
   };
 
@@ -92,52 +106,25 @@ const MainApp: React.FC = () => {
 
             <div className="space-y-1">
               <h3 className="text-3xl font-black text-slate-900 dark:text-white font-jakarta tracking-tight">
-                {isRegistering ? 'Provision New Node' : 'Initialize Node'}
+                Initialize Node
               </h3>
               <p className="text-slate-500 dark:text-slate-400 font-medium">
-                {isRegistering ? 'Enter node identification details.' : 'Authenticate via EXXXX or internal email.'}
+                Authenticate via EXXXX or internal email.
               </p>
             </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
-              {!isRegistering && (
-                <div className="p-1 bg-slate-200/80 dark:bg-slate-800 rounded-2xl flex gap-1 shadow-inner border border-slate-300 dark:border-slate-700">
-                  <button type="button" onClick={() => setRole(UserRole.EMPLOYEE)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.EMPLOYEE ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Staff</button>
-                  <button type="button" onClick={() => setRole(UserRole.HR)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.HR ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>HR</button>
-                  <button type="button" onClick={() => setRole(UserRole.ADMIN)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.ADMIN ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Admin</button>
-                </div>
-              )}
+              <div className="p-1 bg-slate-200/80 dark:bg-slate-800 rounded-2xl flex gap-1 shadow-inner border border-slate-300 dark:border-slate-700">
+                <button type="button" onClick={() => setRole(UserRole.EMPLOYEE)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.EMPLOYEE ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Staff</button>
+                <button type="button" onClick={() => setRole(UserRole.HR)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.HR ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>HR</button>
+                <button type="button" onClick={() => setRole(UserRole.ADMIN)} className={`flex-1 py-3 px-4 rounded-[0.9rem] text-xs font-black uppercase tracking-widest transition-all ${role === UserRole.ADMIN ? 'bg-white dark:bg-slate-700 text-[#E31E24] shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}>Admin</button>
+              </div>
 
               <div className="space-y-3">
-                {isRegistering ? (
-                  <>
-                    <div className="relative group">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
-                      <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Legal Name" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="relative group">
-                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
-                        <input type="text" required value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="E1001" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
-                      </div>
-                      <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
-                        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors pointer-events-none" />
-                      <select required value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all cursor-pointer shadow-sm appearance-none">
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    </div>
-                  </>
-                ) : (
-                  <div className="relative group">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
-                    <input type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="EXXXX or Email" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
-                  </div>
-                )}
+                <div className="relative group">
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
+                  <input type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="EXXXX or Email" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
+                </div>
                 <div className="relative group">
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
                   <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Access Password" className="w-full pl-11 pr-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all shadow-sm" />
@@ -148,14 +135,55 @@ const MainApp: React.FC = () => {
               {successMsg && <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-black uppercase tracking-widest rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3"><CheckCircle2 size={14} /> {successMsg}</div>}
 
               <button type="submit" className="w-full py-5 bg-slate-950 dark:bg-white dark:text-slate-900 hover:bg-[#E31E24] dark:hover:bg-[#E31E24] dark:hover:text-white text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl transition-all duration-300 flex items-center justify-center gap-2">
-                {isRegistering ? 'Sync Provisioning' : 'Access Node'} <ArrowRight size={16} />
-              </button>
-
-              <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }} className="w-full text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] hover:text-[#E31E24] transition-colors">
-                {isRegistering ? 'Identified node already exists?' : 'New infrastructure request?'}
+                Access Node <ArrowRight size={16} />
               </button>
             </form>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUser.mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 font-inter transition-colors duration-500">
+        <div className="w-full max-w-md space-y-8 animate-[fadeIn_0.5s_ease-out]">
+          <div className="text-center space-y-4">
+            <ExordLogo className="w-24 h-24 mx-auto drop-shadow-xl" />
+            <h3 className="text-3xl font-black text-slate-900 dark:text-white font-jakarta tracking-tight">Security Protocol Update</h3>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Initial node access detected. You must update your credentials to proceed.</p>
+          </div>
+
+          <form onSubmit={handleChangePassword} className="space-y-6 bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">New Access Password</label>
+                <div className="relative group">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
+                  <input type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 8 characters" className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Confirm New Password</label>
+                <div className="relative group">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-[#E31E24] transition-colors" />
+                  <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all" />
+                </div>
+              </div>
+            </div>
+
+            {error && <div className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[11px] font-black uppercase tracking-widest rounded-2xl border-2 border-rose-100 dark:border-rose-900/40 flex items-center gap-3 animate-pulse"><ShieldAlert size={14} /> {error}</div>}
+            {successMsg && <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-black uppercase tracking-widest rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3"><CheckCircle2 size={14} /> {successMsg}</div>}
+
+            <div className="flex flex-col gap-3">
+              <button type="submit" className="w-full py-5 bg-slate-950 dark:bg-[#E31E24] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 group">
+                Commit Credentials <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button type="button" onClick={logout} className="w-full py-4 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-red-600 transition-colors">
+                Terminate Session
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -170,6 +198,7 @@ const MainApp: React.FC = () => {
       case 'security': return <SecurityLogs />;
       case 'payroll': return <PayrollView />;
       case 'leaves': return <LeavesView />;
+      case 'infrastructure': return <InfrastructureView />;
       case 'attendance': 
         return currentUser.role === UserRole.ADMIN ? <AdminDashboard /> : <EmployeePortal />;
       default: return <AdminDashboard />;

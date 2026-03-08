@@ -3,10 +3,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useHRM } from '../store';
 import L from 'leaflet';
 import { Map as MapIcon, Users, Target, Crosshair, MapPinned, Activity, RefreshCw } from 'lucide-react';
-import { OFFICE_CONFIG } from '../constants';
+import { UNIT_CONFIG } from '../constants';
 
 const LiveTracking: React.FC = () => {
-  const { gpsLogs, users } = useHRM();
+  const { gpsLogs, users, units } = useHRM();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
@@ -20,31 +20,34 @@ const LiveTracking: React.FC = () => {
     mapRef.current = L.map(mapContainerRef.current, { 
       zoomControl: false,
       attributionControl: false
-    }).setView([OFFICE_CONFIG.LOCATION.lat, OFFICE_CONFIG.LOCATION.lng], 13);
+    }).setView([units[0]?.lat || 23.8103, units[0]?.lng || 90.4125], 13);
     
     L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19
     }).addTo(mapRef.current);
 
-    // HQ Geofence
-    L.circle([OFFICE_CONFIG.LOCATION.lat, OFFICE_CONFIG.LOCATION.lng], {
-      color: '#E31E24',
-      fillColor: '#E31E24',
-      fillOpacity: 0.1,
-      radius: OFFICE_CONFIG.RADIUS_METERS,
-      weight: 2,
-      dashArray: '5, 10'
-    }).addTo(mapRef.current).bindPopup('Exord HQ Sector');
+    // Render all units
+    units.forEach(unit => {
+      // Unit Geofence
+      L.circle([unit.lat, unit.lng], {
+        color: '#E31E24',
+        fillColor: '#E31E24',
+        fillOpacity: 0.1,
+        radius: unit.radius,
+        weight: 2,
+        dashArray: '5, 10'
+      }).addTo(mapRef.current!).bindPopup(`${unit.name} Sector`);
 
-    // HQ Marker
-    L.marker([OFFICE_CONFIG.LOCATION.lat, OFFICE_CONFIG.LOCATION.lng], {
-      icon: L.divIcon({
-        className: 'hq-marker',
-        html: `<div class="w-6 h-6 bg-white dark:bg-slate-900 border-2 border-red-600 rounded-lg shadow-lg flex items-center justify-center"><div class="w-2 h-2 bg-red-600 rounded-full"></div></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      })
-    }).addTo(mapRef.current);
+      // Unit Marker
+      L.marker([unit.lat, unit.lng], {
+        icon: L.divIcon({
+          className: 'hq-marker',
+          html: `<div class="w-6 h-6 bg-white dark:bg-slate-900 border-2 border-red-600 rounded-lg shadow-lg flex items-center justify-center"><div class="w-2 h-2 bg-red-600 rounded-full"></div></div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        })
+      }).addTo(mapRef.current!).bindPopup(unit.name);
+    });
 
     // Fix map size on container resize
     const resizeObserver = new ResizeObserver(() => {
@@ -182,7 +185,7 @@ const LiveTracking: React.FC = () => {
         {/* Controls Overlay */}
         <div className="absolute bottom-10 right-10 z-10 flex flex-col gap-3">
            <button 
-             onClick={() => mapRef.current?.setView([OFFICE_CONFIG.LOCATION.lat, OFFICE_CONFIG.LOCATION.lng], 16)} 
+             onClick={() => mapRef.current?.setView([units[0]?.lat || 23.8103, units[0]?.lng || 90.4125], 16)} 
              className="p-4 bg-white dark:bg-slate-800 text-red-600 rounded-2xl shadow-2xl border-2 border-slate-100 dark:border-slate-700 hover:scale-110 active:scale-95 transition-all group"
            >
               <Target size={24} className="group-hover:rotate-45 transition-transform" />
@@ -199,7 +202,7 @@ const LiveTracking: React.FC = () => {
         <div className="absolute top-6 left-6 z-10 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl border-2 border-slate-300 dark:border-slate-800 shadow-xl hidden sm:block">
            <div className="space-y-2">
               <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
-                 <div className="w-2 h-2 rounded-full bg-red-600"></div> HQ Perimeter
+                 <div className="w-2 h-2 rounded-full bg-red-600"></div> Unit Perimeter
               </div>
               <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div> Signal Active

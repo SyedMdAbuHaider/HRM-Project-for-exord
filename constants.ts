@@ -1,5 +1,5 @@
 
-export const OFFICE_CONFIG = {
+export const UNIT_CONFIG = {
   IP_SUBNET: '192.168.1',
   RADIUS_METERS: 100,
   LOCATION: {

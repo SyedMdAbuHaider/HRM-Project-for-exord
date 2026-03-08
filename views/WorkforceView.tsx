@@ -7,7 +7,7 @@ import { Users, Filter, Search, Edit2, Mail, Shield, DollarSign, Building2, Chev
 import { formatCurrency } from '../utils';
 
 const WorkforceView: React.FC = () => {
-  const { users, updateUser, createEmployee, currentUser } = useHRM();
+  const { users, updateUser, createEmployee, currentUser, departments } = useHRM();
   const [selectedDept, setSelectedDept] = useState<string>('All Departments');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -16,7 +16,7 @@ const WorkforceView: React.FC = () => {
     name: '',
     id: '',
     email: '',
-    department: DEPARTMENTS[0],
+    department: departments[0]?.name || '',
     baseSalary: 45000,
     fatherName: '',
     motherName: '',
@@ -69,7 +69,7 @@ const WorkforceView: React.FC = () => {
           name: '',
           id: '',
           email: '',
-          department: DEPARTMENTS[0],
+          department: departments[0]?.name || '',
           baseSalary: 45000,
           fatherName: '',
           motherName: '',
@@ -150,8 +150,8 @@ const WorkforceView: React.FC = () => {
               className="bg-slate-50 dark:bg-slate-700 border-none rounded-xl text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 py-3 pl-4 pr-10 focus:ring-4 focus:ring-red-50/50 cursor-pointer transition-all"
             >
               <option>All Departments</option>
-              {DEPARTMENTS.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.name}>{dept.name}</option>
               ))}
             </select>
           </div>
@@ -233,7 +233,7 @@ const WorkforceView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white font-jakarta tracking-tight">Provision New Workforce Node</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Initialize internal asset credentials</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Default Password: <span className="text-[#E31E24]">Exord@123</span> (Force change on first login)</p>
                 </div>
               </div>
               <button onClick={() => setIsCreating(false)} className="p-3 text-slate-400 hover:text-red-600 transition-all">
@@ -397,7 +397,7 @@ const WorkforceView: React.FC = () => {
                     onChange={(e) => setEditingUser({...editingUser, department: e.target.value})}
                     className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] transition-all appearance-none cursor-pointer"
                   >
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-3">
