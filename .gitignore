@@ -1,24 +1,63 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+build/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+
 # Logs
-logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+logs/
 
-node_modules
-dist
-dist-ssr
-*.local
+# Runtime data
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Uploads / generated runtime data
+uploads/
+storage/
+data/
+
+# Temporary / backup files
+*.bak
+*.bak_*
+*.backup
+*.old
+*.orig
+*~
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+
+# Diagnostics
+diag_output.txt
+
+# Supabase CLI temporary state
+supabase/.temp/
+
+# Certificates / private keys
+*.pem
+*.key
+
+# Local IDE
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+
+# Development history / migration artifacts
+migrated_prompt_history/
+
+# Backup files
+*.bak
+*.bak_*
+*.bak2
+*.bak3

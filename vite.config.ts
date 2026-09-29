@@ -8,6 +8,29 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/upload': {
+            target: 'http://localhost:8080',
+            changeOrigin: true,
+          },
+          '/files': {
+            target: 'http://localhost:8080',
+            changeOrigin: true,
+          },
+          '/file-health': {
+            target: 'http://localhost:8080',
+            changeOrigin: true,
+            rewrite: () => '/health',
+          },
+          '/probe': {
+            target: 'http://localhost:8081',
+            changeOrigin: true,
+          },
+          '/email': {
+            target: 'http://localhost:8081',
+            changeOrigin: true,
+          },
+        },
       },
       plugins: [react()],
       define: {
@@ -18,6 +41,23 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Fix: vendor-react removed — React 19 ESM resolves inline, chunk was 0 bytes
+              // Supabase client — large but rarely changes
+              'vendor-supabase': ['@supabase/supabase-js'],
+              // Recharts — only needed on dashboard
+              'vendor-charts': ['recharts'],
+              // Leaflet — only needed on live tracking view
+              'vendor-leaflet': ['leaflet'],
+              // Lucide icons — tree-shaken but still sizeable
+              'vendor-icons': ['lucide-react'],
+            },
+          },
+        },
+      },
     };
 });

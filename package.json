@@ -10,16 +10,27 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.574.0",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.21.0",
+    "ping": "^0.4.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^3.7.0",
-    "@google/genai": "^1.41.0",
-    "lucide-react": "^0.574.0",
-    "leaflet": "^1.9.4"
+    "serve": "^14.2.6",
+    "snmp-native": "^1.2.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
