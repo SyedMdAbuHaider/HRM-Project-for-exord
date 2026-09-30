@@ -428,12 +428,12 @@ const CustomRolesView: React.FC = () => {
           {roles.map(role => (
             <div
               key={role.id}
-              className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 soft-shadow overflow-hidden group transition-all hover:shadow-xl hover:-translate-y-0.5"
+              className=" bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 soft-shadow overflow-hidden group transition-all hover:shadow-xl hover:-translate-y-0.5"
             >
               {/* Color bar */}
               <div className="h-1.5 w-full" style={{ backgroundColor: role.color }} />
 
-              <div className="p-6">
+              <div className="p-6 space-y-7">
                 {/* Role header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
