@@ -583,7 +583,7 @@ const AttendanceView: React.FC = () => {
             { label: 'Absent', value: stats.absent, color: 'from-rose-500 to-red-600', icon: XCircle },
             { label: 'On Leave', value: stats.onLeave, color: 'from-amber-500 to-orange-500', icon: Calendar },
           ].map((s, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 soft-shadow">
+            <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 soft-shadow">
               <div className={`p-3 w-fit rounded-xl bg-gradient-to-br ${s.color} text-white shadow-lg mb-4`}>
                 <s.icon size={18} />
               </div>

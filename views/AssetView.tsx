@@ -537,7 +537,7 @@ const AssetView: React.FC = () => {
           { label: 'In Maintenance', value: totalMaint, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           { label: 'Top Office', value: topUnit ? `${topUnit[0]} (${topUnit[1]})` : '—', icon: Building2, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-3xl p-7 border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className={`w-10 h-10 ${s.bg} rounded-2xl flex items-center justify-center mb-3`}>
               <s.icon size={18} className={s.color} />
             </div>
