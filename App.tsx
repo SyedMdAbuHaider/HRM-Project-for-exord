@@ -1,6 +1,24 @@
+import React, { useState, useEffect } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { DesignationTrackModal } from './components/DesignationTrackModal';
 import { PromotionCertModal } from './components/PromotionCertModal';
+import { RoleCapabilitiesProvider } from './views/RoleCapabilitiesView';
+import { HRMProvider, useHRM } from './store';
+import { supabase } from './supabaseClient';
+import { UserRole } from './types';
+import Sidebar from './components/Sidebar';
+import {
+  ShieldAlert, KeyRound, Menu, Bell,
+  User as UserIcon, CheckCircle2, ArrowRight,
+  Sun, Moon, Palette, LogOut, ChevronRight,
+  Upload, FileText, CalendarClock, Clock, AlertTriangle,
+  Eye, EyeOff,
+  LayoutDashboard, Users, MessageSquare, DollarSign, UserCircle, X
+} from 'lucide-react';
+import { getThemeById, applyTheme, resetTheme, DEFAULT_THEME_ID, FESTIVAL_THEMES, type AppTheme } from './themes';
+import { readLayoutSettings, writeLayoutSettings, applyLayoutSettings, resetLayoutSettings, DEFAULT_LAYOUT, type LayoutSettings } from './layoutSettings';
+import { useLanguage, saveUserLang, loadUserLang, getGreetingKey, getGreetingEmoji, getFirstName, type TranslationKey } from './i18n';
+
 const AdminDashboard      = React.lazy(() => import('./views/AdminDashboard'));
 const EmployeePortal      = React.lazy(() => import('./views/EmployeePortal'));
 const LiveTracking        = React.lazy(() => import('./views/LiveTracking'));
@@ -20,7 +38,6 @@ const BroadcastView       = React.lazy(() => import('./views/BroadcastView'));
 const ApprovalFlowView    = React.lazy(() => import('./views/ApprovalFlowView'));
 const UnitApprovalConfigView = React.lazy(() => import('./views/UnitApprovalConfigView'));
 const RoleCapabilitiesView = React.lazy(() => import('./views/RoleCapabilitiesView'));
-import { RoleCapabilitiesProvider } from './views/RoleCapabilitiesView';
 const SystemSettingsView  = React.lazy(() => import('./views/SystemSettingsView'));
 const DutyReplacementView = React.lazy(() => import('./views/DutyReplacementView'));
 const CustomRolesView     = React.lazy(() => import('./views/CustomRolesView'));
@@ -29,22 +46,8 @@ const RosterView          = React.lazy(() => import('./views/RosterView'));
 const DesignationAdminView = React.lazy(() => import('./views/DesignationAdminView'));
 const ThemePicker         = React.lazy(() => import('./components/ThemePicker'));
 const LayoutPicker        = React.lazy(() => import('./components/LayoutPicker'));
-import React, { useState, useEffect } from 'react';
-import { HRMProvider, useHRM } from './store';
-import { supabase } from './supabaseClient';
-import { UserRole } from './types';
-import Sidebar from './components/Sidebar';
-import {
-  ShieldAlert, KeyRound, Menu, Bell,
-  User as UserIcon, CheckCircle2, ArrowRight,
-  Sun, Moon, Palette, LogOut, ChevronRight,
-  Upload, FileText, CalendarClock, Clock, AlertTriangle,
-  Eye, EyeOff,
-  LayoutDashboard, Users, MessageSquare, DollarSign, UserCircle, X
-} from 'lucide-react';
-import { getThemeById, applyTheme, resetTheme, DEFAULT_THEME_ID, FESTIVAL_THEMES, type AppTheme } from './themes';
-import { readLayoutSettings, writeLayoutSettings, applyLayoutSettings, resetLayoutSettings, DEFAULT_LAYOUT, type LayoutSettings } from './layoutSettings';
-import { useLanguage, saveUserLang, loadUserLang, getGreetingKey, getGreetingEmoji, getFirstName, type TranslationKey } from './i18n';
+
+
 
 const ViewSkeleton: React.FC = () => (
   <div className="space-y-4 animate-pulse">

@@ -421,16 +421,13 @@ const DutyScheduleCard: React.FC<{
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 ">
+        <div className="flex items-center gap-2 justify-center">
           <Clock size={13} className="text-[#E31E24]" />
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">My Duty Schedule</p>
         </div>
-        <button
-          onClick={() => { setShowDutyEdit(p => !p); setDutyMsg(null); setDutyForm({ checkIn: schedule.checkInTime, checkOut: schedule.checkOutTime, reason: '' }); }}
-          className="flex items-center gap-1 px-2.5 py-1 bg-[#E31E24] text-white text-[9px] font-black uppercase tracking-widest rounded-lg active:scale-95 transition-all">
-          <Edit2 size={10} /> {showDutyEdit ? 'Cancel' : 'Request Change'}
-        </button>
+       
+
       </div>
       <div className="px-4 py-3 grid grid-cols-3 gap-3">
         <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl p-3 text-center">
@@ -445,6 +442,8 @@ const DutyScheduleCard: React.FC<{
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Early CI</p>
           <p className="font-black text-amber-600 dark:text-amber-400 text-sm">{schedule.earlyCheckInMinutes ?? 30}m</p>
         </div>
+
+
       </div>
       {latestReq && (
         <div className="px-4 pb-3">
@@ -457,6 +456,7 @@ const DutyScheduleCard: React.FC<{
             <span className="text-slate-400">—</span>
             <span>Last request: {latestReq.requestedCheckIn} → {latestReq.requestedCheckOut}</span>
           </div>
+
         </div>
       )}
       {showDutyEdit && (
@@ -508,6 +508,16 @@ const DutyScheduleCard: React.FC<{
           </button>
         </div>
       )}
+
+
+
+       <div className="flex justify-center mb-[10px]">
+         <button
+          onClick={() => { setShowDutyEdit(p => !p); setDutyMsg(null); setDutyForm({ checkIn: schedule.checkInTime, checkOut: schedule.checkOutTime, reason: '' }); }}
+          className="flex items-center gap-1 px-2.5 py-1 bg-[#E31E24] text-white text-[9px] font-black uppercase tracking-widest rounded-lg active:scale-95 transition-all">
+          <Edit2 size={10} /> {showDutyEdit ? 'Cancel' : 'Request Change'}
+        </button>
+       </div>
     </div>
   );
 };
