@@ -1098,48 +1098,59 @@ const MainApp: React.FC = () => {
                     </div>
 
                     {/* ── Quick toggles: Appearance + Language ── */}
-                    <div className="px-4 py-3 border-b border-slate-100 dark:border-white/8 grid grid-cols-2 gap-2.5">
-                      {/* Dark / Light */}
-                      <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Appearance</p>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => { if (theme === 'dark') toggleTheme(); }}
-                            className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all text-[9px] font-black uppercase ${theme === 'light' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                          >
-                            <Sun size={14} />
-                            Light
-                          </button>
-                          <button
-                            onClick={() => { if (theme === 'light') toggleTheme(); }}
-                            className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all text-[9px] font-black uppercase ${theme === 'dark' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                          >
-                            <Moon size={14} />
-                            Dark
-                          </button>
-                        </div>
-                      </div>
+                  <div className="px-4 py-3.5 border-b border-slate-100 dark:border-white/8 grid grid-cols-2 gap-3">
+  {/* Dark / Light */}
+  <div className="flex flex-col rounded-[15px] p-3 bg-gradient-to-b from-slate-50 to-slate-100/70 dark:from-slate-800/80 dark:to-slate-800/40 ring-1 ring-slate-200/80 dark:ring-white/[0.06]">
+    <div className="flex items-center gap-2 mb-2.5">
+      <span className="w-5 h-5 rounded bg-white dark:bg-slate-700 shadow-sm ring-1 ring-slate-200/70 dark:ring-white/10 flex items-center justify-center">
+        {theme === 'light'
+          ? <Sun size={11} className="text-amber-500" />
+          : <Moon size={11} className="text-indigo-300" />}
+      </span>
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Appearance</p>
+    </div>
+    <div className="flex flex-1 gap-1 p-1 rounded-lg bg-slate-200/70 dark:bg-slate-950/50 shadow-inner">
+      <button
+        onClick={() => { if (theme === 'dark') toggleTheme(); }}
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-md transition-all duration-300 text-[9px] font-extrabold uppercase tracking-wider ${theme === 'light' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-[0_1px_3px_rgba(15,23,42,0.15)] ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+      >
+        <Sun size={14} className={theme === 'light' ? 'text-amber-500' : ''} />
+        Light
+      </button>
+      <button
+        onClick={() => { if (theme === 'light') toggleTheme(); }}
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-md transition-all duration-300 text-[9px] font-extrabold uppercase tracking-wider ${theme === 'dark' ? 'bg-slate-700 text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] ring-1 ring-white/10' : 'text-slate-400 hover:text-slate-600'}`}
+      >
+        <Moon size={14} className={theme === 'dark' ? 'text-indigo-300' : ''} />
+        Dark
+      </button>
+    </div>
+  </div>
 
-                      {/* Language */}
-                      <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Language</p>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => handleSetLang('en')}
-                            className={`flex-1 py-2 rounded-xl transition-all text-[10px] font-black ${lang === 'en' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                          >
-                            EN
-                          </button>
-                          <button
-                            onClick={() => handleSetLang('bn')}
-                            className={`flex-1 py-2 rounded-xl transition-all text-[10px] font-black ${lang === 'bn' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                          >
-                            বাং
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
+  {/* Language */}
+  <div className="flex flex-col rounded-[15px] p-3 bg-gradient-to-b from-slate-50 to-slate-100/70 dark:from-slate-800/80 dark:to-slate-800/40 ring-1 ring-slate-200/80 dark:ring-white/[0.06]">
+    <div className="flex items-center gap-2 mb-2.5">
+      <span className="w-5 h-5 rounded bg-white dark:bg-slate-700 shadow-sm ring-1 ring-slate-200/70 dark:ring-white/10 flex items-center justify-center text-[10px] font-black text-[#E31E24] leading-none">
+        {lang === 'en' ? 'A' : 'অ'}
+      </span>
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Language</p>
+    </div>
+    <div className="flex flex-1 gap-1 p-1 rounded-lg bg-slate-200/70 dark:bg-slate-950/50 shadow-inner">
+      <button
+        onClick={() => handleSetLang('en')}
+        className={`flex-1 flex items-center justify-center py-2 rounded-md transition-all duration-300 text-[11px] font-extrabold tracking-wider ${lang === 'en' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-[0_1px_3px_rgba(15,23,42,0.15)] ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+      >
+        EN
+      </button>
+      <button
+        onClick={() => handleSetLang('bn')}
+        className={`flex-1 flex items-center justify-center py-2 rounded-md transition-all duration-300 text-[11px] font-extrabold tracking-wider ${lang === 'bn' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-[0_1px_3px_rgba(15,23,42,0.15)] ring-1 ring-black/5 dark:ring-white/10' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+      >
+        বাং
+      </button>
+    </div>
+  </div>
+</div>
                     {/* ── Notifications ── */}
                     <div className="border-b border-slate-100 dark:border-white/8">
                       <div className="px-5 py-3 flex items-center justify-between">
