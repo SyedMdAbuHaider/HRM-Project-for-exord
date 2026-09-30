@@ -479,7 +479,7 @@ const RosterView: React.FC = () => {
       <div className="flex gap-2 flex-wrap">
         {ROSTER_DEPARTMENTS.map(dept => (
           <button key={dept} onClick={() => { setSelectedDept(dept); setSearchQuery(''); }}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition-all ${
+            className={`px-4 py-2.5 rounded-2xl text-[12.5px] font-medium border-2 transition-all ${
               selectedDept === dept
                 ? 'bg-[#E31E24] border-[#E31E24] text-white shadow-md'
                 : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-[#E31E24] bg-white dark:bg-slate-900'
