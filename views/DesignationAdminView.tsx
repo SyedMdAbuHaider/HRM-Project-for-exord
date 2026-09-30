@@ -139,14 +139,14 @@ export const DesignationAdminView: React.FC = () => {
         <p style={{ margin: '6px 0 0', color: '#666', fontSize: 14 }}>Override or fix employee career tracks and designations.</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 20}}>
         {[
           { label: 'Total', val: employees.length, color: '#4f46e5' },
           { label: 'No Track', val: noTrack, color: noTrack > 0 ? '#dc2626' : '#16a34a' },
           { label: 'Executive', val: employees.filter(e => e.designation_track === 'EXECUTIVE').length, color: '#0891b2' },
           { label: 'Technician', val: employees.filter(e => e.designation_track === 'TECHNICIAN').length, color: '#d97706' },
         ].map(s => (
-          <div key={s.label} style={{ flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', borderLeft: '4px solid ' + s.color }}>
+          <div key={s.label} style={{flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', borderLeft: '4px solid ' + s.color }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.val}</div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{s.label}</div>
           </div>

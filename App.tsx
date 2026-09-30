@@ -322,7 +322,7 @@ const MobileBottomNav: React.FC<{
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 md:hidden flex items-stretch bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/10"
+      className="fixed bottom-0 left-0 right-0 z-40 min-[1033px]:hidden flex items-stretch bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/10"
       style={{
         boxShadow: '0 -8px 30px rgba(0,0,0,0.08)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -1002,10 +1002,10 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row transition-colors duration-500 overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col min-[1033px]:flex-row transition-colors duration-500 overflow-hidden">
       {/* ── PWA Install Banner ── */}
       {showInstallBanner && (
-        <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[100] animate-[slideUp_0.3s_ease-out]">
+        <div className="fixed bottom-20 min-[1033px]:bottom-4 left-4 right-4 min-[1033px]:left-auto min-[1033px]:right-4 min-[1033px]:w-96 z-[100] animate-[slideUp_0.3s_ease-out]">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-4 flex items-center gap-3"
             style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
             <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#E31E24] flex items-center justify-center flex-shrink-0">
@@ -1033,17 +1033,17 @@ const MainApp: React.FC = () => {
       <Sidebar activeView={activeView} setActiveView={setActiveView} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {isSidebarOpen && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 md:hidden transition-all duration-500" onClick={() => setIsSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 min-[1033px]:hidden transition-all duration-500" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen transition-all duration-500 md:ml-72 relative">
+      <main className="flex-1 flex flex-col min-h-screen transition-all duration-500 min-[1033px]:ml-72 relative">
         <header
           className="sticky top-0 z-30 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-300 dark:border-slate-800"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
           <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 md:hidden border-2 border-slate-300 dark:border-slate-700">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 min-[1033px]:hidden border-2 border-slate-300 dark:border-slate-700">
               <Menu size={20} />
             </button>
             <h1 className="text-xl font-black text-slate-900 dark:text-white capitalize tracking-tight flex items-center gap-3 font-jakarta">
@@ -1286,7 +1286,7 @@ const MainApp: React.FC = () => {
                   </button>
                 </div>
               )}
-              <div className="flex-1 p-4 sm:p-10 pb-28 sm:pb-10 max-w-[1600px] mx-auto w-full">
+              <div className="flex-1 p-4 sm:p-10 pb-28 min-[1033px]:pb-10 max-w-[1600px] mx-auto w-full">
                 <div key={activeView} className="view-transition">
                   {renderView()}
                 </div>

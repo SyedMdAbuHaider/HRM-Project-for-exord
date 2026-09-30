@@ -485,6 +485,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
   return (
     <>
       <style>{`
+
+
         .exord-logo-img { mix-blend-mode: multiply; }
         .dark .exord-logo-img { mix-blend-mode: multiply; }
 
@@ -531,7 +533,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
       <div className={`
         exord-sidebar fixed inset-y-0 left-0 z-50 w-72 flex flex-col
         transition-all duration-500 ease-in-out
-        md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        min-[1033px]:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
 
         {/* ── Logo area ── */}
@@ -567,7 +569,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
           </div>
 
           {/* Mobile close */}
-          <button onClick={onClose} className="p-2 sidebar-link-inactive md:hidden transition-colors flex-shrink-0 ml-2">
+          <button onClick={onClose} className="p-2 sidebar-link-inactive min-[1033px]:hidden transition-colors flex-shrink-0 ml-2">
             <X size={22} />
           </button>
 
@@ -597,7 +599,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, on
             return (
               <button
                 key={link.id}
-                onClick={() => { setActiveView(link.id); if (window.innerWidth < 768) onClose(); }}
+                onClick={() => { setActiveView(link.id); if (window.innerWidth < 1033) onClose(); }}
                 className={`w-full flex items-center gap-4 px-5 py-3.5 transition-all duration-200 group relative ${
                   isActive
                     ? 'bg-gradient-to-r from-[#E31E24] to-[#C41217] text-white shadow-lg shadow-red-900/20 translate-x-1'
