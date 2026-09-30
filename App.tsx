@@ -212,7 +212,7 @@ const WelcomeBanner: React.FC<{ name: string; role: string; lang: 'en' | 'bn' }>
   });
 
   return (
-    <div className="relative overflow-hidden mx-4 sm:mx-10 mt-4 sm:mt-6 rounded-[1.5rem] animate-[slideDown_0.5s_ease-out] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border border-white/10 shadow-2xl">
+    <div className="relative overflow-hidden w-[90%] mx-auto mt-4 sm:mt-6 rounded-[1.5rem] animate-[slideDown_0.5s_ease-out] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border border-white/10 shadow-2xl">
       {/* Red accent line top */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#E31E24] to-transparent" />
 
@@ -254,7 +254,7 @@ const WelcomeBanner: React.FC<{ name: string; role: string; lang: 'en' | 'bn' }>
               <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </button>
-          <p className="text-[9px] text-white/25 font-bold uppercase tracking-widest text-right hidden md:block whitespace-nowrap">
+          <p className="text-[9px] text-white/25 font-bold uppercase tracking-widest text-right hidden xl:block whitespace-nowrap">
             {dateStr}
           </p>
         </div>
@@ -1036,7 +1036,7 @@ const MainApp: React.FC = () => {
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 min-[1033px]:hidden transition-all duration-500" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen transition-all duration-500 min-[1033px]:ml-72 relative">
+      <main className="flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-500 min-[1033px]:ml-72 relative">
         <header
           className="sticky top-0 z-30 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-300 dark:border-slate-800"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
