@@ -3,6 +3,7 @@ package com.exord.hrm
 import android.app.Application
 import android.os.Bundle
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
@@ -62,7 +63,7 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
  var tab by remember{mutableStateOf(0)};val items=nav(role)
  Scaffold(bottomBar={NavigationBar(containerColor=Color.White){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
-  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p);"Pay"->Payroll(vm,p);"More"->More(role,p){ pp-> Notifications(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
+  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p);"Pay"->Payroll(vm,p);"More"->More(role,p){ pp-> Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
 @Composable private fun Dashboard(vm:HrmViewModel,name:String,role:String,p:PaddingValues){
@@ -99,6 +100,24 @@ private fun lastKnownLocation(context:Context):Location?{
  Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.status?:s.period_status?:"",color=Muted,fontSize=12.sp)}}}}}
 }
 @Composable private fun More(role:String,p:PaddingValues,onNotifications:(PaddingValues)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){if(f=="Notifications")TextButton({onNotifications(p)},Modifier.fillMaxWidth()){Text(f,Modifier.fillMaxWidth().padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}else Text(f,Modifier.padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}
+@Composable private fun Profile(vm:HrmViewModel,p:PaddingValues){
+ val me by vm.profile.collectAsState()
+ var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var message by remember{mutableStateOf("")}
+ LaunchedEffect(Unit){if(me==null){vm.loadEmployees()}}
+ Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){
+  Text("Profile",color=Red,fontWeight=FontWeight.Bold);Text(me?.full_name?:"My Profile",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text(me?.employee_code?:me?.id.orEmpty(),color=Muted)
+  Spacer(Modifier.height(14.dp));BoxCard("Employee information"){
+   listOf("Department" to me?.department,"Designation" to me?.designation,"Email" to me?.email,"Status" to me?.status).forEach{(k,v)->Row(Modifier.fillMaxWidth().padding(vertical=5.dp),horizontalArrangement=Arrangement.SpaceBetween){Text(k,fontWeight=FontWeight.SemiBold);Text(v?: "—",color=Muted)}}
+  }
+  Spacer(Modifier.height(14.dp));BoxCard("Change password"){
+   OutlinedTextField(current,{current=it},label={Text("Current password")},singleLine=true,modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(8.dp))
+   OutlinedTextField(next,{next=it},label={Text("New password")},singleLine=true,modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(8.dp))
+   OutlinedTextField(confirm,{confirm=it},label={Text("Confirm password")},singleLine=true,modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(10.dp))
+   Button({if(next.length<8)message="Password must be at least 8 characters" else if(next!=confirm)message="Passwords do not match" else {vm.changePassword(current,next);message="Password update submitted"}},enabled=next.isNotBlank()&&confirm.isNotBlank()){Text("Update password")}
+   if(message.isNotBlank())Text(message,color=if(message.contains("submitted"))Red else MaterialTheme.colorScheme.error,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
+  }
+ }
+}
 @Composable private fun Notifications(vm:HrmViewModel,p:PaddingValues){
  val ns by vm.notifications.collectAsState()
  LaunchedEffect(Unit){vm.loadNotifications()}
