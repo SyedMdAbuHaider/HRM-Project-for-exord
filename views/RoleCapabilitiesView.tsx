@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { UserRole } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { useHRM } from '../store';
 import {
   ShieldCheck, Save, RefreshCw, CheckCircle,
