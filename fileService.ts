@@ -23,6 +23,8 @@ const getToken = (): string => {
   catch { return ''; }
 };
 
+const normalizeResult = (result: UploadResult): UploadResult => ({ ...result, url: result.url.startsWith('http') ? result.url : FILE_SERVER + result.url });
+
 const authHeaders = (): Record<string, string> => {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -45,7 +47,7 @@ export const uploadAvatar = async (file: File): Promise<UploadResult> => {
     const err = await res.json().catch(() => ({ error: 'Upload failed' }));
     throw new Error(err.error || 'Avatar upload failed');
   }
-  return res.json();
+  return normalizeResult(await res.json());
 };
 
 /**
