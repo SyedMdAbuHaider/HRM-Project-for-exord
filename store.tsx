@@ -997,6 +997,8 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = useCallback(async () => {
     if (currentUser) await addActivityLog('USER_LOGOUT', 'AUTH', `${currentUser.name} ended session.`, 'LOW');
+    try { await api.post('/api/v1/auth/logout', {}); } catch {}
+
     setCurrentUser(null); setIsTracking(false); setNotifications([]);
     try { localStorage.removeItem('exord-session'); } catch {}
     try { localStorage.removeItem('exord-active-view'); } catch {}
