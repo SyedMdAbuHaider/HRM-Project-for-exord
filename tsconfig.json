@@ -27,6 +27,9 @@
     "noEmit": true
   },
   "exclude": [
-    "backend"
+    "backend",
+    "supabase/**/*",
+    "supabaseClient.ts",
+    "backend/**/*"
   ]
 }
