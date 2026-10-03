@@ -59,6 +59,15 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
   }
   const rawBodies=Array.isArray(req.body)?req.body:[req.body];
   const bodies=rawBodies.map(row=>bodyMap(t,row));
+  if(t==='messages' && req.method==='POST'){
+    for(const row of bodies){
+      if(!row.conversation_id) throw Object.assign(new Error('conversation_id is required'),{status:400});
+      const member=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2 AND hidden_at IS NULL LIMIT 1',[row.conversation_id,req.auth.employeeId]);
+      if(!member.rowCount) throw Object.assign(new Error('Not a member of this conversation'),{status:403});
+      row.sender_id=req.auth.employeeId;
+      delete row.employee_id;
+    }
+  }
   if(!bodies.length||!Object.keys(bodies[0]).length)return res.json({data:[],error:null});
   const keys=Object.keys(bodies[0]);
   if(bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
