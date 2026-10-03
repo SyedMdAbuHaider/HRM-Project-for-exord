@@ -29,3 +29,11 @@ ALTER TABLE leave_requests
   ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS idx_migration_id_map_source ON migration_id_map(source_table, source_id);
+
+CREATE TABLE IF NOT EXISTS legacy_import_rows (
+  source_table text NOT NULL,
+  source_id text NOT NULL,
+  payload jsonb NOT NULL,
+  imported_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(source_table, source_id)
+);
