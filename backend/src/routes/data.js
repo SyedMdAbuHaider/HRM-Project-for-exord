@@ -44,8 +44,19 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
   }
   const id=req.query.id; if(req.method==='DELETE'){if(!id)throw Object.assign(new Error('id is required'),{status:400});const out=await db.query('DELETE FROM '+qi(actual)+' WHERE id=$1 RETURNING *',[id]);return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});}
   const body=bodyMap(t,req.body); const keys=Object.keys(body); if(!keys.length)return res.json({data:[],error:null}); const vals=keys.map(k=>body[k]);
-  if(req.method==='POST'){const cols=keys.map(qi).join(',');const ph=vals.map((_,i)=>'
-  if(!id)throw Object.assign(new Error('id is required'),{status:400}); const sets=keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',');const out=await db.query('UPDATE '+qi(actual)+' SET '+sets+' WHERE id=$'+(vals.length+1)+' RETURNING *',[...vals,id]);return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
+  if(req.method==='POST'){
+    const cols=keys.map(qi).join(',');
+    const ph=vals.map((_,i)=>'$'+(i+1)).join(',');
+    const conflict=req.query.onConflict?String(req.query.onConflict).split(',').map(qi).join(','):'';
+    const updates=keys.filter(k=>!String(req.query.onConflict||'').split(',').includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+    const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES ('+ph+') '+(conflict?'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])):'')+' RETURNING *';
+    const out=await db.query(sql,vals);
+    return res.status(201).json({data:out.rows.map(r=>legacy(t,r)),error:null});
+  }
+  if(!id)throw Object.assign(new Error('id is required'),{status:400});
+  const sets=keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',');
+  const out=await db.query('UPDATE '+qi(actual)+' SET '+sets+' WHERE id=$'+(vals.length+1)+' RETURNING *',[...vals,id]);
+  return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
  }catch(e){next(e);} });+(i+1)).join(',');const conflict=req.query.onConflict?String(req.query.onConflict).split(',').map(qi).join(','):'';const updates=keys.filter(k=>!(String(req.query.onConflict||'').split(',').includes(k))).map((k)=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES ('+ph+') '+(conflict?'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])):'')+' RETURNING *';const out=await db.query(sql,vals);return res.status(201).json({data:out.rows.map(r=>legacy(t,r)),error:null});}
   if(!id)throw Object.assign(new Error('id is required'),{status:400}); const sets=keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',');const out=await db.query('UPDATE '+qi(actual)+' SET '+sets+' WHERE id=$'+(vals.length+1)+' RETURNING *',[...vals,id]);return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
  }catch(e){next(e);} });
