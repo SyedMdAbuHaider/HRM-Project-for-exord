@@ -107,7 +107,6 @@ const showBrowserNotification = async (title: string, body: string, view = 'chat
     icon: '/logo.png',
     badge: '/logo.png',
     tag: `exord-chat-${Date.now()}`, // unique tag = each message shows separately
-    renotify: true,
     silent: false,
     data: { view, url: window.location.origin },
   };
