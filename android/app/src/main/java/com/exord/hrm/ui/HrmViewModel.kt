@@ -17,7 +17,7 @@ data class HrmState(val loggedIn:Boolean=false,val name:String="",val role:Strin
 
 class HrmViewModel(app:Application):AndroidViewModel(app){
  private val sessions=SessionStore(app)
- private val api=ApiFactory.create{currentToken}
+ private val api=ApiFactory.create({currentToken},{sessions.refreshToken()},{a,r->currentToken=a;sessions.save(a,r)},{currentToken="";sessions.clear()})
  private var currentToken=""
  var identifier=""
  var password=""
