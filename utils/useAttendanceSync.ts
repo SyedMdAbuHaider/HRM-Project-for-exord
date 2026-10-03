@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { getQueue, dequeue, incrementRetry } from './attendanceQueue';
 
 const MAX_RETRIES = 5;
