@@ -1,4 +1,6 @@
-type BuilderResult={data:any,error:any};\n\nconst API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
+type BuilderResult={data:any,error:any};
+
+const API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
 
 class Builder {
   table:string; method:'GET'|'POST'|'PATCH'|'DELETE'='GET'; fields='*'; filters:[string,string,string][]=[]; orderBy?:string; orderDesc=false; limitN?:number; body:any; onConflict?:string; singleMode:'none'|'single'|'maybe'='none';
