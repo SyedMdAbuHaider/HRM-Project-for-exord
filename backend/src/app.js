@@ -1,0 +1,36 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { config } from './config.js';
+import { healthRouter } from './routes/health.js';
+
+export const app = express();
+
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(express.json({ limit: '2mb' }));
+
+if (config.corsOrigins.length) {
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('CORS origin denied'));
+    },
+    credentials: true,
+  }));
+}
+
+app.get('/api/v1', (_req, res) => {
+  res.json({
+    service: 'Exord HRM API',
+    version: 'v1',
+    status: 'online'
+  });
+});
+
+app.use('/api/v1/health', healthRouter);
+
+app.use((err, _req, res, _next) => {
+  console.error('[api]', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
