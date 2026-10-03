@@ -12,7 +12,7 @@ import {
   CheckCircle, AlertCircle, X, ChevronDown, Building2,
   Bell, Zap, Banknote, Calendar, Loader2, Search, Mail
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 
 const inputCls = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:border-[#E31E24] outline-none transition-all";
 const labelCls = "text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1.5";
