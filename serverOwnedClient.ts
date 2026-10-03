@@ -31,6 +31,6 @@ class Builder {
     let data:any=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
     return {data,error:json.error??null};
   }
-  then<TResult1=any,TResult2=never>(onfulfilled?:((value:any)=>TResult1|PromiseLike<TResult1>)|null,onrejected?:((reason:any)=>TResult2|PromiseLike<TResult2>)|null):Promise<TResult1|TResult2>{return this.run().then(onfulfilled,onrejected);}
+  then(onfulfilled?:((value:{data:any,error:any})=>any)|null,onrejected?:((reason:any)=>any)|null):Promise<any>{return this.run().then(onfulfilled,onrejected);}
 }
-export const supabase={from:(table:string)=>new Builder(table),channel:(_name:string)=>({on:()=>({subscribe:()=>({})})}),removeChannel:async()=>({})};
+export const supabase={from:(table:string)=>new Builder(table),channel:(_name:string)=>({on:(_event?:any,_filter?:any,_callback?:any)=>({subscribe:(_status?:any)=>({})})}),removeChannel:async(..._args:any[])=>({}),functions:{invoke:async(..._args:any[])=>({data:null,error:null})}};
