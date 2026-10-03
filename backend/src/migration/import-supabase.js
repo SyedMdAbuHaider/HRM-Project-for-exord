@@ -415,7 +415,7 @@ async function insertGeneric(client, target, row, sourceTable) {
   const spec=specs[target];
   if(!spec) { console.warn(`Skipping unsupported target ${target}`); return; }
   const cols=[], vals=[];
-  for(const [col,source] of spec){ let v=pick(row,source); if(col==='id') v=id; if(col==='updated_by') v=await resolve(client,'users',v); if(col==='value') v=jsonOr(v,{}); if(['created_at','updated_at','locked_until'].includes(col)) v=dateOrNull(v); cols.push(col); vals.push(v); }
+  for(const [col,source] of spec){ let v=pick(row,source); if(target==='holidays' && col==='holiday_date') v=pick(row,'holiday_date','holidayDate','date','holidayDateValue','day','start_date'); if(col==='id') v=id; if(col==='updated_by') v=await resolve(client,'users',v); if(col==='value') v=jsonOr(v,{}); if(['created_at','updated_at','locked_until'].includes(col)) v=dateOrNull(v); cols.push(col); vals.push(v); }
   const placeholders=vals.map((_,i)=>'$'+(i+1)).join(',');
   await client.query(`INSERT INTO ${target}(${cols.join(',')}) VALUES(${placeholders}) ON CONFLICT DO NOTHING`,vals);
 }
