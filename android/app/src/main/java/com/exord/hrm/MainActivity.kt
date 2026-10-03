@@ -1,6 +1,6 @@
 package com.exord.hrm
 
-import android.os.Bundle
+import android.os.Bundle\nimport android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel\nimport androidx.activity.result.contract.ActivityResultContracts
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.ui.HrmViewModel
 
@@ -24,7 +24,7 @@ private val Ink=Color(0xFF111827)
 private val Muted=Color(0xFF6B7280)
 private val Card=Color(0xFFF8FAFC)
 
-class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.onCreate(b);setContent{ExordApp()}}}
+class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b);setContent{ExordApp()}} }
 
 @Composable fun ExordApp(vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(application))){
  val s by vm.state.collectAsState()
