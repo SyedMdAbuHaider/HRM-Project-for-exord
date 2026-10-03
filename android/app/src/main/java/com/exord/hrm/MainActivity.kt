@@ -86,7 +86,33 @@ private fun lastKnownLocation(context:Context):Location?{
 }
 @Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues){
  val context=LocalContext.current
- val rs by vm.attendance.collectAsState();Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Attendance",color=Red,fontWeight=FontWeight.Bold);Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard("Server-authoritative attendance"){Text("The server validates attendance policy, timing and geofence.",color=Muted);Spacer(Modifier.height(12.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({lastKnownLocation(context)?.let{vm.recordAttendance("check_in",it.latitude,it.longitude)} ?: vm.recordAttendance("check_in",null,null)}){Text("Check in")};OutlinedButton({lastKnownLocation(context)?.let{vm.recordAttendance("check_out",it.latitude,it.longitude)} ?: vm.recordAttendance("check_out",null,null)}){Text("Check out")}}};Spacer(Modifier.height(14.dp));Text("Recent records",fontWeight=FontWeight.Bold);LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(rs,key={it.id}){r->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)){Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text(r.type?:r.attendance_type?:"Attendance",fontWeight=FontWeight.Bold);Text(r.occurred_at,color=Muted,fontSize=12.sp)};if(r.is_late)Text("+"+r.late_minutes+" min",color=Red,fontWeight=FontWeight.Bold)}}}}}}}
+ val rs by vm.attendance.collectAsState()
+ Column(Modifier.fillMaxSize().padding(p).padding(18.dp)) {
+  Text("Attendance",color=Red,fontWeight=FontWeight.Bold)
+  Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink)
+  Spacer(Modifier.height(12.dp))
+  BoxCard("Server-authoritative attendance") {
+   Text("The server validates attendance policy, timing and geofence.",color=Muted)
+   Spacer(Modifier.height(12.dp))
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Button({ lastKnownLocation(context)?.let { vm.recordAttendance("check_in",it.latitude,it.longitude) } ?: vm.recordAttendance("check_in",null,null) }) { Text("Check in") }
+    OutlinedButton({ lastKnownLocation(context)?.let { vm.recordAttendance("check_out",it.latitude,it.longitude) } ?: vm.recordAttendance("check_out",null,null) }) { Text("Check out") }
+   }
+  }
+  Spacer(Modifier.height(14.dp))
+  Text("Recent records",fontWeight=FontWeight.Bold)
+  LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+   items(rs,key={it.id}) { r ->
+    Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)) {
+     Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+      Column { Text(r.type ?: r.attendance_type ?: "Attendance",fontWeight=FontWeight.Bold); Text(r.occurred_at,color=Muted,fontSize=12.sp) }
+      if(r.is_late) Text("+undefined min",color=Red,fontWeight=FontWeight.Bold)
+     }
+    }
+   }
+  }
+ }
+}
 @Composable private fun Requests(vm:HrmViewModel,role:String,p:PaddingValues){
  val leaves by vm.leaves.collectAsState()
  var type by remember{mutableStateOf("Annual Leave")};var start by remember{mutableStateOf("")};var end by remember{mutableStateOf("")}
@@ -99,7 +125,7 @@ private fun lastKnownLocation(context:Context):Location?{
 }
 @Composable private fun Payroll(vm:HrmViewModel,p:PaddingValues){
  val salaries by vm.salaries.collectAsState();LaunchedEffect(Unit){vm.loadSalaries()}
- Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.status?:s.period_status?:"",color=Muted,fontSize=12.sp)}}}}}
+ Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.period_status.orEmpty(),color=Muted,fontSize=12.sp)}}}}}
 }
 @Composable private fun More(role:String,p:PaddingValues,onSelect:(String,PaddingValues)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){TextButton({if(f=="Profile"||f=="Notifications")onSelect(f,p)},Modifier.fillMaxWidth()){Text(f,Modifier.fillMaxWidth().padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}}
 
@@ -150,7 +176,7 @@ private fun lastKnownLocation(context:Context):Location?{
  }
  LaunchedEffect(Unit){vm.loadChat()}
  Column(Modifier.fillMaxSize().padding(p)){
-  Text("Chat",color=Red,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp,top=18.dp))
+  Text("Chat",color=Red,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp).padding(top=18.dp))
   Text("Messages",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink,modifier=Modifier.padding(horizontal=18.dp))
   if(conversations.isNotEmpty()){
    LazyRow(Modifier.fillMaxWidth().height(60.dp).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){
