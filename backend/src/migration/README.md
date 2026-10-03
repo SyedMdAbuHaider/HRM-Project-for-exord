@@ -40,3 +40,16 @@ The import uses the target database configured by `DATABASE_URL`.
 - Keep the existing Supabase application online until parity checks pass.
 
 The migration script does not delete or modify the Supabase source.
+
+## Automated export
+
+From a machine that can reach Supabase, set the source URL and service-role key only in environment variables:
+
+```bash
+export SUPABASE_URL='https://<your-project>.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='<your-service-role-key>'
+export SUPABASE_EXPORT_DIR=/srv/hrm-migration/supabase-export
+npm run export:supabase
+```
+
+The exporter paginates in 1,000-row batches and writes one JSON file per table. The service-role key is never written to the export files. Treat the export directory as sensitive because employee/payroll data is included.
