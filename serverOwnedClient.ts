@@ -20,17 +20,21 @@ class Builder {
   update(body:any){this.method='PATCH';this.body=body;return this;}
   delete(){this.method='DELETE';return this;}
   upsert(body:any,opts?:any){this.method='POST';this.body=body;this.onConflict=opts?.onConflict;return this;}
-  async run():Promise<{data:any,error:any}>{
+  async run():Promise<any>{
     const q=new URLSearchParams();
     if(this.method==='GET'){q.set('select',this.fields);for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);if(this.orderBy)q.set('order',this.orderBy+'.'+(this.orderDesc?'desc':'asc'));if(this.limitN)q.set('limit',String(this.limitN));}
     if(this.method==='POST'&&this.onConflict)q.set('onConflict',this.onConflict);
     if(this.method==='PATCH'||this.method==='DELETE'){for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);}
-    const token=localStorage.getItem('exord_auth_token'); const headers:any={'Accept':'application/json'}; if(token)headers.Authorization='Bearer '+token; if(this.method==='POST'||this.method==='PATCH')headers['Content-Type']='application/json';
+    const token=localStorage.getItem('exord_auth_token');const headers:any={'Accept':'application/json'};if(token)headers.Authorization='Bearer '+token;if(this.method==='POST'||this.method==='PATCH')headers['Content-Type']='application/json';
     const r=await fetch(API_BASE+'/api/v1/data/'+encodeURIComponent(this.table)+(q.toString()?'?'+q.toString():''),{method:this.method,headers,body:this.body===undefined?undefined:JSON.stringify(this.body)});
-    const json=await r.json().catch(()=>({})); if(!r.ok)return {data:null,error:{message:json.error||('HTTP '+r.status),status:r.status}};
-    let data:any=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
-    return {data,error:json.error??null};
+    const json=await r.json().catch(()=>({}));if(!r.ok)return {data:null,error:{message:json.error||('HTTP '+r.status),status:r.status}};
+    let data:any=json.data??null;if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}return {data,error:json.error??null};
   }
-  then(onfulfilled?:((value:{data:any,error:any})=>any)|null,onrejected?:((reason:any)=>any)|null):Promise<any>{return this.run().then(onfulfilled as any,onrejected as any);}
+  then(onfulfilled?:((value:any)=>any)|null,onrejected?:((reason:any)=>any)|null):Promise<any>{return this.run().then(onfulfilled as any,onrejected as any);}
 }
-export const supabase={from:(table:string)=>new Builder(table),channel:(_name:string)=>({on:(_event?:any,_filter?:any,_callback?:any)=>({subscribe:(_status?:any)=>({})})}),removeChannel:async(..._args:any[])=>({}),functions:{invoke:async(..._args:any[])=>({data:null,error:null})}};
+export const supabase:any={
+  from:(table:string):any=>new Builder(table),
+  channel:(_name:string):any=>({on:(_event?:any,_filter?:any,_callback?:any)=>({subscribe:(_status?:any)=>({})})}),
+  removeChannel:async(..._args:any[])=>({}),
+  functions:{invoke:async(..._args:any[])=>({data:null,error:null})}
+};
