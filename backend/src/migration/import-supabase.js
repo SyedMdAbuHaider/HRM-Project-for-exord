@@ -295,6 +295,107 @@ async function archiveLegacyRow(client, sourceTable, row) {\n  const sourceId = 
       [id,employee,numOr(pick(row,'lat','latitude'),0),numOr(pick(row,'lng','longitude'),0),numOr(pick(row,'accuracy','accuracy_meters'),null),
        dateOrNull(pick(row,'timestamp','recorded_at','created_at'))||new Date().toISOString(),textOrNull(pick(row,'source'))||'migration']); return;
   }
+  if (target === 'schedule_change_requests') {
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const manager=await resolve(client,'users',pick(row,'manager_approved_by','managerApprovedBy'));
+    const hr=await resolve(client,'users',pick(row,'hr_approved_by','hrApprovedBy'));
+    const rejected=await resolve(client,'users',pick(row,'rejected_by','rejectedBy'));
+    await client.query(`INSERT INTO schedule_change_requests(id,employee_id,change_type,requested_check_in,requested_check_out,start_date,end_date,reason,status,advance_notice_hours,policy_violation,manager_approved_by,hr_approved_by,rejected_by,rejection_reason,created_at,updated_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT(id) DO NOTHING`,
+      [id,employee,String(pick(row,'change_type','changeType')||'TEMPORARY').toUpperCase(),pick(row,'requested_check_in','requestedCheckIn')||'09:00',pick(row,'requested_check_out','requestedCheckOut')||'18:00',
+       pick(row,'start_date','startDate')?String(pick(row,'start_date','startDate')).slice(0,10):null,pick(row,'end_date','endDate')?String(pick(row,'end_date','endDate')).slice(0,10):null,
+       textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),numOr(pick(row,'advance_notice_hours','advanceNoticeHours'),null),
+       boolOr(pick(row,'policy_violation','policyViolation'),false),manager,hr,rejected,textOrNull(pick(row,'rejection_reason','rejectionReason')),
+       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'weekend_work_permissions') {
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const approver=await resolve(client,'users',pick(row,'approved_by','approvedBy'));
+    await client.query(`INSERT INTO weekend_work_permissions(id,employee_id,work_date,reason,status,approved_by,created_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING`,
+      [id,employee,String(pick(row,'work_date','workDate')||'').slice(0,10),textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),approver,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'duty_roster') {
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO duty_roster(id,employee_id,duty_date,check_in_time,check_out_time,shift_name,status,created_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
+      [id,employee,String(pick(row,'duty_date','dutyDate')||'').slice(0,10),pick(row,'check_in_time','checkInTime')||null,pick(row,'check_out_time','checkOutTime')||null,
+       textOrNull(pick(row,'shift_name','shiftName')),String(pick(row,'status')||'SCHEDULED').toUpperCase(),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'department_delegates') {
+    const department=await resolve(client,'departments',pick(row,'department_id','departmentId'));
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO department_delegates(id,department_id,employee_id,starts_at,ends_at,created_at)
+      VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO NOTHING`,
+      [id,department,employee,dateOrNull(pick(row,'starts_at','startsAt'))||new Date().toISOString(),dateOrNull(pick(row,'ends_at','endsAt')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'unit_approvers') {
+    const unit=await resolve(client,'units',pick(row,'unit_id','unitId'));
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO unit_approvers(unit_id,employee_id,role_code) VALUES($1,$2,$3) ON CONFLICT(unit_id,employee_id,role_code) DO NOTHING`,
+      [unit,employee,String(pick(row,'role_code','roleCode','role')||'MANAGER').toUpperCase()]); return;
+  }
+  if (target === 'department_approvers') {
+    const department=await resolve(client,'departments',pick(row,'department_id','departmentId'));
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO department_approvers(department_id,employee_id,role_code) VALUES($1,$2,$3) ON CONFLICT(department_id,employee_id,role_code) DO NOTHING`,
+      [department,employee,String(pick(row,'role_code','roleCode','role')||'MANAGER').toUpperCase()]); return;
+  }
+  if (target === 'role_capabilities') {
+    await client.query(`INSERT INTO role_capabilities(role_code,capability,granted) VALUES($1,$2,$3)
+      ON CONFLICT(role_code,capability) DO UPDATE SET granted=EXCLUDED.granted`,
+      [String(pick(row,'role_code','roleCode','role')||'EMPLOYEE').toUpperCase(),String(pick(row,'capability','permission','feature')||''),boolOr(pick(row,'granted'),true)]); return;
+  }
+  if (target === 'custom_roles') {
+    const creator=await resolve(client,'users',pick(row,'created_by','createdBy'));
+    await client.query(`INSERT INTO custom_roles(id,name,description,created_by,created_at) VALUES($1,$2,$3,$4,$5)
+      ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,created_by=EXCLUDED.created_by`,
+      [id,textOrNull(pick(row,'name','title'))||'Imported Role',textOrNull(pick(row,'description')),creator,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'custom_role_members') {
+    const role=await resolve(client,'custom_roles',pick(row,'role_id','roleId'));
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO custom_role_members(role_id,employee_id) VALUES($1,$2) ON CONFLICT(role_id,employee_id) DO NOTHING`,[role,employee]); return;
+  }
+  if (target === 'custom_role_permissions') {
+    const role=await resolve(client,'custom_roles',pick(row,'role_id','roleId'));
+    await client.query(`INSERT INTO custom_role_permissions(role_id,capability,granted) VALUES($1,$2,$3)
+      ON CONFLICT(role_id,capability) DO UPDATE SET granted=EXCLUDED.granted`,
+      [role,String(pick(row,'capability','permission','feature')||''),boolOr(pick(row,'granted'),true)]); return;
+  }
+  if (target === 'user_permissions') {
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO user_permissions(employee_id,capability,granted) VALUES($1,$2,$3)
+      ON CONFLICT(employee_id,capability) DO UPDATE SET granted=EXCLUDED.granted`,
+      [employee,String(pick(row,'capability','permission','feature')||''),boolOr(pick(row,'granted'),true)]); return;
+  }
+  if (target === 'profile_change_requests') {
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const reviewer=await resolve(client,'users',pick(row,'reviewed_by','reviewedBy'));
+    await client.query(`INSERT INTO profile_change_requests(id,employee_id,field_name,old_value,new_value,reason,status,reviewed_by,review_note,created_at,reviewed_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING`,
+      [id,employee,textOrNull(pick(row,'field_name','fieldName'))||'',textOrNull(pick(row,'old_value','oldValue')),textOrNull(pick(row,'new_value','newValue')),
+       textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),reviewer,textOrNull(pick(row,'review_note','reviewNote')),
+       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'reviewed_at','reviewedAt'))]); return;
+  }
+  if (target === 'message_reads') {
+    const message=await resolve(client,'messages',pick(row,'message_id','messageId'));
+    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    await client.query(`INSERT INTO message_reads(message_id,employee_id,read_at) VALUES($1,$2,$3)
+      ON CONFLICT(message_id,employee_id) DO UPDATE SET read_at=EXCLUDED.read_at`,
+      [message,employee,dateOrNull(pick(row,'read_at','readAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'stored_files') {
+    const owner=await resolve(client,'users',pick(row,'owner_id','user_id','userId'));
+    const conversation=await resolve(client,'conversations',pick(row,'conversation_id','conversationId'));
+    await client.query(`INSERT INTO stored_files(id,owner_id,scope,original_name,storage_key,mime_type,size_bytes,checksum_sha256,conversation_id,created_at,deleted_at,source_url)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO NOTHING`,
+      [id,owner,String(pick(row,'scope')||'private'),textOrNull(pick(row,'original_name','originalName','file_name','fileName'))||'imported',
+       textOrNull(pick(row,'storage_key','storageKey'))||`legacy/${id}`,String(pick(row,'mime_type','mimeType')||'application/octet-stream'),
+       numOr(pick(row,'size_bytes','sizeBytes','file_size','fileSize'),0),textOrNull(pick(row,'checksum_sha256','checksumSha256')),conversation,
+       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'deleted_at','deletedAt')),textOrNull(pick(row,'source_url','sourceUrl','url'))]); return;
+  }
+
   // For small configuration tables, build a deterministic insert from known target columns.
   const specs = {
     login_attempts: [['identifier','identifier'],['count','count'],['locked_until','locked_until'],['updated_at','updated_at']],
