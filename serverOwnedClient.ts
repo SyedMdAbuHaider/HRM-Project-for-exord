@@ -13,6 +13,8 @@ class Builder {
   lt(c:string,v:any){this.filters.push(['lt',c,String(v)]);return this;}
   lte(c:string,v:any){this.filters.push(['lte',c,String(v)]);return this;}
   in(c:string,v:any[]){this.filters.push(['in',c,v.join(',')]);return this;}
+  is(c:string,v:any){this.filters.push(['is',c,String(v)]);return this;}
+  ilike(c:string,v:any){this.filters.push(['ilike',c,String(v)]);return this;}
   order(c:string,o:any={}){this.orderBy=c;this.orderDesc=o.ascending===false;return this;}
   limit(n:number){this.limitN=n;return this;}
   single(){this.singleMode='single';return this;}
