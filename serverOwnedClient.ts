@@ -20,7 +20,7 @@ class Builder {
   update(body:any){this.method='PATCH';this.body=body;return this;}
   delete(){this.method='DELETE';return this;}
   upsert(body:any,opts?:any){this.method='POST';this.body=body;this.onConflict=opts?.onConflict;return this;}
-  async run():Promise<any>{
+  async run():Promise<{data:any,error:any}>{
     const q=new URLSearchParams();
     if(this.method==='GET'){q.set('select',this.fields);for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);if(this.orderBy)q.set('order',this.orderBy+'.'+(this.orderDesc?'desc':'asc'));if(this.limitN)q.set('limit',String(this.limitN));}
     if(this.method==='POST'&&this.onConflict)q.set('onConflict',this.onConflict);
@@ -31,6 +31,6 @@ class Builder {
     let data:any=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
     return {data,error:json.error??null};
   }
-  then<TResult1 = {data:any,error:any}, TResult2 = never>(onfulfilled?:((value:{data:any,error:any})=>TResult1|PromiseLike<TResult1>)|null,onrejected?:((reason:any)=>TResult2|PromiseLike<TResult2>)|null):Promise<TResult1|TResult2>{return this.run().then(onfulfilled as any,onrejected as any);}
+  then(onfulfilled?:((value:{data:any,error:any})=>any)|null,onrejected?:((reason:any)=>any)|null):Promise<any>{return this.run().then(onfulfilled as any,onrejected as any);}
 }
 export const supabase={from:(table:string)=>new Builder(table),channel:(_name:string)=>({on:(_event?:any,_filter?:any,_callback?:any)=>({subscribe:(_status?:any)=>({})})}),removeChannel:async(..._args:any[])=>({}),functions:{invoke:async(..._args:any[])=>({data:null,error:null})}};
