@@ -5,6 +5,16 @@ import { requireAuth } from '../auth/middleware.js';
 export const hrmRouter = Router();
 
 const canManage = (req) => ['DEVELOPER','ADMIN','CO_ADMIN','HR','MANAGER'].includes(req.auth?.role);
+const canApproveAll = (req) => ['DEVELOPER','ADMIN'].includes(req.auth?.role);
+const nextLeaveStage = (applicantRole, status) => {
+  const flow = {
+    EMPLOYEE: { PENDING: ['MANAGER','MANAGER_APPROVED'], MANAGER_APPROVED: ['HR','HR_APPROVED'], HR_APPROVED: ['ADMIN','APPROVED'] },
+    MANAGER: { PENDING: ['HR','HR_APPROVED'], HR_APPROVED: ['CO_ADMIN','CO_ADMIN_APPROVED'], CO_ADMIN_APPROVED: ['ADMIN','APPROVED'] },
+    HR: { PENDING: ['CO_ADMIN','CO_ADMIN_APPROVED'], CO_ADMIN_APPROVED: ['ADMIN','APPROVED'] },
+    CO_ADMIN: { PENDING: ['ADMIN','APPROVED'] }
+  };
+  return flow[applicantRole]?.[status] || null;
+};
 
 hrmRouter.get('/units', requireAuth, async (_req,res,next)=>{
   try { const {rows}=await db.query('SELECT * FROM units ORDER BY name'); res.json({units:rows}); } catch(e){next(e);}
@@ -38,9 +48,12 @@ hrmRouter.post('/leaves', requireAuth, async (req,res,next)=>{
   try {
     const b=req.body||{};
     if(!b.leaveType||!b.startDate||!b.endDate) return res.status(400).json({error:'leaveType, startDate and endDate are required'});
+    const roleRow=await db.query('SELECT r.code AS role FROM employees e JOIN roles r ON r.id=e.role_id WHERE e.id=$1',[req.auth.employeeId]);
+    const applicantRole=roleRow.rows[0]?.role || 'EMPLOYEE';
+    const first=nextLeaveStage(applicantRole,'PENDING') || ['MANAGER','MANAGER_APPROVED'];
     const {rows}=await db.query(`INSERT INTO leave_requests(employee_id,leave_type,start_date,end_date,reason,status,current_approver_role)
-      VALUES($1,$2,$3,$4,$5,'PENDING','MANAGER') RETURNING *`,
-      [req.auth.employeeId,b.leaveType,b.startDate,b.endDate,b.reason||null]);
+      VALUES($1,$2,$3,$4,$5,'PENDING',$6) RETURNING *`,
+      [req.auth.employeeId,b.leaveType,b.startDate,b.endDate,b.reason||null,first[0]]);
     res.status(201).json({leave:rows[0]});
   } catch(e){next(e);}
 });
@@ -50,9 +63,33 @@ hrmRouter.patch('/leaves/:id', requireAuth, async (req,res,next)=>{
     const {status,rejectionReason}=req.body||{};
     if(!status) return res.status(400).json({error:'status is required'});
     const out=await withTransaction(async(client)=>{
-      const q=await client.query('SELECT * FROM leave_requests WHERE id=$1 FOR UPDATE',[req.params.id]);
-      if(!q.rows[0]) { const err=new Error('Leave not found'); err.status=404; throw err; }
-      await client.query('UPDATE leave_requests SET status=$1,rejection_reason=$2,updated_at=now() WHERE id=$3',[status,rejectionReason||null,req.params.id]);
+      const q=await client.query(`SELECT l.*,r.code AS applicant_role
+        FROM leave_requests l JOIN employees e ON e.id=l.employee_id
+        JOIN roles r ON r.id=e.role_id WHERE l.id=$1 FOR UPDATE`,[req.params.id]);
+      const leave=q.rows[0];
+      if(!leave) { const err=new Error('Leave not found'); err.status=404; throw err; }
+      if(!['REJECTED','APPROVED'].includes(status) && !nextLeaveStage(leave.applicant_role,leave.status)) {
+        const err=new Error('Invalid leave status transition'); err.status=409; throw err;
+      }
+      if(status==='REJECTED'){
+        if(!canApproveAll(req) && leave.current_approver_role!==req.auth.role){
+          const err=new Error('This leave is not awaiting your approval role'); err.status=403; throw err;
+        }
+      } else if(status==='APPROVED'){
+        if(!canApproveAll(req) || leave.current_approver_role!=='ADMIN'){
+          const err=new Error('Only Admin or Developer can finalize this leave'); err.status=403; throw err;
+        }
+      } else {
+        const stage=nextLeaveStage(leave.applicant_role,leave.status);
+        if(!stage || stage[1]!==status || (!canApproveAll(req) && stage[0]!==req.auth.role)){
+          const err=new Error('This leave is not awaiting your approval role'); err.status=403; throw err;
+        }
+      }
+      const stage=nextLeaveStage(leave.applicant_role,leave.status);
+      const nextRole=status==='REJECTED'||status==='APPROVED' ? null : (stage?.[0] || null);
+      await client.query(`UPDATE leave_requests
+        SET status=$1,rejection_reason=$2,current_approver_role=$3,updated_at=now()
+        WHERE id=$4`,[status,status==='REJECTED'?rejectionReason||null:null,nextRole,req.params.id]);
       await client.query('INSERT INTO approval_actions(request_type,request_id,actor_id,action,note) VALUES($1,$2,$3,$4,$5)',
         ['LEAVE',req.params.id,req.auth.employeeId,status,rejectionReason||null]);
       return (await client.query('SELECT * FROM leave_requests WHERE id=$1',[req.params.id])).rows[0];
