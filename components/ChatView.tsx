@@ -1461,9 +1461,9 @@ const ChatView: React.FC = () => {
               <div className="px-4 sm:px-6 py-1.5 flex-shrink-0">
                 <p className="text-[11px] text-slate-400 font-bold italic">
                   {typingList.length === 1
-                    ? `${typingList[0].name} is typing...`
+                    ? `${(typingList as Array<{name:string}>)[0].name} is typing...`
                     : typingList.length === 2
-                    ? `${typingList[0].name} and ${typingList[1].name} are typing...`
+                    ? `${(typingList as Array<{name:string}>)[0].name} and ${(typingList as Array<{name:string}>)[1].name} are typing...`
                     : `${typingList.length} people are typing...`}
                 </p>
               </div>
