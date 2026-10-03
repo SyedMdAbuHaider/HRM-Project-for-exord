@@ -429,7 +429,7 @@ async function insertGeneric(client, target, row, sourceTable) {
       const departmentName=pick(row,'department','department_name','departmentName');
       if (departmentName) {
         const normalized=String(departmentName).trim().toLowerCase();
-        const compact=(value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/engineering/g,'').replace(/department|dept/g,'');
+        const compact=(value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/engineering/g,'').replace(/department|dept/g,'').replace(/operations/g,'operation');
         const dr=await client.query(
           "SELECT id,name FROM departments WHERE lower(trim(name)) = $1 LIMIT 1",
           [normalized],
