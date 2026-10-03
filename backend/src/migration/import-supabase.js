@@ -206,7 +206,7 @@ async function importUsers(client, rows) {
   }
 }
 
-async function insertGeneric(client, target, row, sourceTable) {
+async function archiveLegacyRow(client, sourceTable, row) {\n  const sourceId = String(pick(row,'id','user_id','employee_id','key') ?? crypto.randomUUID());\n  await client.query(\n    'INSERT INTO legacy_import_rows(source_table,source_id,payload) VALUES($1,$2,$3) ON CONFLICT(source_table,source_id) DO UPDATE SET payload=EXCLUDED.payload, imported_at=now()',\n    [sourceTable, sourceId, row],\n  );\n}\n\nasync function insertGeneric(client, target, row, sourceTable) {
   const id = await resolve(client, sourceTable, pick(row,'id'));
   const common = {
     attendance: ['employee_id','type','status','occurred_at','location','ip_address','device_id','app_version','source','is_late','late_minutes','reason','client_event_id','synced_at'],
@@ -253,6 +253,41 @@ async function insertGeneric(client, target, row, sourceTable) {
       [id,actor,textOrNull(pick(row,'action','event','type'))||'MIGRATED',textOrNull(pick(row,'category'))||'LEGACY',
        textOrNull(pick(row,'severity'))||'INFO',textOrNull(pick(row,'details','description','message')),jsonOr(pick(row,'metadata'),{}),
        dateOrNull(pick(row,'created_at','createdAt','timestamp'))||new Date().toISOString()]); return;
+  }
+  if (target === 'salary_records') {
+    const employee=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    const period=String(pick(row,'period','month_year','monthYear') || (pick(row,'year') && pick(row,'month') ? `${pick(row,'year')}-${String(pick(row,'month')).padStart(2,'0')}` : 'IMPORTED'));
+    const pr=await client.query('INSERT INTO salary_periods(period) VALUES($1) ON CONFLICT(period) DO UPDATE SET period=EXCLUDED.period RETURNING id',[period]);
+    const periodId=pr.rows[0].id;
+    await client.query(`INSERT INTO salary_records(id,period_id,employee_id,base_salary,bonus,deductions,net_salary,status,paid_at,metadata)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET base_salary=EXCLUDED.base_salary,bonus=EXCLUDED.bonus,deductions=EXCLUDED.deductions,net_salary=EXCLUDED.net_salary,status=EXCLUDED.status,paid_at=EXCLUDED.paid_at,metadata=EXCLUDED.metadata`,
+      [id,periodId,employee,numOr(pick(row,'base_salary','baseSalary','base'),0),numOr(pick(row,'bonus'),0),numOr(pick(row,'deductions','deduction'),0),
+       numOr(pick(row,'net_salary','netSalary','net'),0),String(pick(row,'status')||'IMPORTED').toUpperCase(),dateOrNull(pick(row,'paid_at','paidAt')),jsonOr(row,{})]); return;
+  }
+  if (target === 'conversations') {
+    const department=await resolve(client,'departments',pick(row,'department_id','departmentId'));
+    const creator=await resolve(client,'users',pick(row,'created_by','createdBy'));
+    await client.query(`INSERT INTO conversations(id,type,department_id,name,is_private,created_by,created_at,updated_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
+      [id,String(pick(row,'type')||'CUSTOM').toUpperCase(),department,textOrNull(pick(row,'name','title')),boolOr(pick(row,'is_private','isPrivate'),false),creator,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'conversation_members') {
+    const conversation=await resolve(client,'conversations',pick(row,'conversation_id','conversationId'));
+    const employee=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    await client.query(`INSERT INTO conversation_members(conversation_id,employee_id,hidden_at,last_read_at,joined_at)
+      VALUES($1,$2,$3,$4,$5) ON CONFLICT(conversation_id,employee_id) DO UPDATE SET hidden_at=EXCLUDED.hidden_at,last_read_at=EXCLUDED.last_read_at`,
+      [conversation,employee,dateOrNull(pick(row,'hidden_at','hiddenAt')),dateOrNull(pick(row,'last_read_at','lastReadAt')),dateOrNull(pick(row,'joined_at','joinedAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'messages') {
+    const conversation=await resolve(client,'conversations',pick(row,'conversation_id','conversationId'));
+    const sender=await resolve(client,'users',pick(row,'sender_id','senderId','user_id','userId'));
+    const reply=await resolve(client,'messages',pick(row,'reply_to_id','replyToId'));
+    await client.query(`INSERT INTO messages(id,conversation_id,sender_id,content,file_url,file_type,file_name,file_size,mentions,reply_to_id,is_deleted,edited_at,created_at,sender_name)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(id) DO NOTHING`,
+      [id,conversation,sender,textOrNull(pick(row,'content','message','body')),textOrNull(pick(row,'file_url','fileUrl')),textOrNull(pick(row,'file_type','fileType')),
+       textOrNull(pick(row,'file_name','fileName')),pick(row,'file_size','fileSize')==null?null:Number(pick(row,'file_size','fileSize')),
+       Array.isArray(pick(row,'mentions'))?pick(row,'mentions'):[],reply,boolOr(pick(row,'is_deleted','isDeleted'),false),dateOrNull(pick(row,'edited_at','editedAt')),
+       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),textOrNull(pick(row,'sender_name','senderName'))]); return;
   }
   if (target === 'gps_logs') {
     const employee=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
