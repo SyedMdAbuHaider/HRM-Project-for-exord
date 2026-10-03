@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Palette, Sparkles, Zap, Monitor, Globe, Lock, RefreshCw, AlertTriangle } from 'lucide-react';
 import { PERSONAL_THEMES, FESTIVAL_THEMES, AppTheme } from '../themes';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 
 interface Props {
   currentPersonalThemeId: string;
