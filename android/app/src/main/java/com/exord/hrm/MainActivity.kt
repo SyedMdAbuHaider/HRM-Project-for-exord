@@ -41,12 +41,11 @@ class MainActivity:ComponentActivity(){
   super.onCreate(b)
   if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED)
    locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))
-  setContent{ExordApp()}
+  setContent{ExordApp(application)}
  }
 }
 
-@Composable fun ExordApp(){
- val app=LocalContext.current.applicationContext as Application
+@Composable fun ExordApp(app:Application){
  val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn)Shell(vm,s.name,s.role)else Login(vm,s.loading,s.error)}}
@@ -65,7 +64,7 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
  var tab by remember{mutableStateOf(0)};var morePage by remember{mutableStateOf<String?>(null)};val items=nav(role)
  Scaffold(bottomBar={NavigationBar(containerColor=Color(0xE60F172A), tonalElevation=0.dp){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
-  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p);"Pay"->Payroll(vm,p);"More"->More(role,p){ f,pp-> if(f=="Notifications") Notifications(vm,pp) else Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
+  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p,app);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p,app);"Pay"->Payroll(vm,p);"More"->More(role,p){ f,pp-> if(f=="Notifications") Notifications(vm,pp) else Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
 @Composable private fun Dashboard(vm:HrmViewModel,name:String,role:String,p:PaddingValues){
@@ -84,8 +83,7 @@ private fun lastKnownLocation(context:Context):Location?{
  val lm=context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
  return lm.getProviders(true).asSequence().mapNotNull{runCatching{lm.getLastKnownLocation(it)}.getOrNull()}.maxByOrNull{it.time}
 }
-@Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues){
- val context=LocalContext.current
+@Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues,context:Context){
  val rs by vm.attendance.collectAsState()
  Column(Modifier.fillMaxSize().padding(p).padding(18.dp)) {
   Text("Attendance",color=Red,fontWeight=FontWeight.Bold)
@@ -162,8 +160,7 @@ private fun lastKnownLocation(context:Context):Location?{
  }
 }
 
-@Composable private fun Chat(vm:HrmViewModel,p:PaddingValues){
- val context=LocalContext.current
+@Composable private fun Chat(vm:HrmViewModel,p:PaddingValues,context:Context){
  val conversations by vm.conversations.collectAsState()
  val messages by vm.messages.collectAsState()
  var text by remember{mutableStateOf("")}
