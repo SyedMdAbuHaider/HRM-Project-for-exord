@@ -8,6 +8,7 @@ import { meRouter } from './routes/me.js';
 import { attendanceRouter } from './routes/attendance.js';
 import { employeesRouter } from './routes/employees.js';
 import { hrmRouter } from './routes/hrm.js';
+import { dataRouter } from './routes/data.js';
 
 export const app = express();
 
@@ -39,6 +40,7 @@ app.use('/api/v1/me', meRouter);
 app.use('/api/v1/attendance', attendanceRouter);
 app.use('/api/v1/employees', employeesRouter);
 app.use('/api/v1/hrm', hrmRouter);
+app.use('/api/v1/data', dataRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('[api]', err);
