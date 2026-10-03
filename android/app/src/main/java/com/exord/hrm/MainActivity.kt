@@ -61,7 +61,7 @@ class MainActivity:ComponentActivity(){
 }
 private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal","Clock","Chat","Pay","More");"MANAGER"->listOf("Home","Team","Requests","Chat","More");"CO_ADMIN","HR"->listOf("Home","People","Requests","Chat","More");else->listOf("Home","People","Attend","Chat","More") }
 
-@Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
+@Composable private fun Shell(vm:HrmViewModel,name:String,role:String,app:Application){
  var tab by remember{mutableStateOf(0)};var morePage by remember{mutableStateOf<String?>(null)};val items=nav(role)
  Scaffold(bottomBar={NavigationBar(containerColor=Color(0xE60F172A), tonalElevation=0.dp){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
   when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p,app);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p,app);"Pay"->Payroll(vm,p);"More"->More(role,p){ f,pp-> if(f=="Notifications") Notifications(vm,pp) else Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
