@@ -256,7 +256,8 @@ async function insertGeneric(client, target, row, sourceTable) {
        dateOrNull(pick(row,'read_at','readAt')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'audit_logs') {
-    const actor=await resolve(client,'users',pick(row,'user_id','userId','actor_id','actorId'));
+    const actorSource=pick(row,'user_id','userId','actor_id','actorId');
+    const actor=actorSource ? await mappedId(client,'users',actorSource,false) : null;
     await client.query(`INSERT INTO audit_logs(id,actor_id,action,category,severity,details,metadata,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
       [id,actor,textOrNull(pick(row,'action','event','type'))||'MIGRATED',textOrNull(pick(row,'category'))||'LEGACY',
        textOrNull(pick(row,'severity'))||'INFO',textOrNull(pick(row,'details','description','message')),jsonOr(pick(row,'metadata'),{}),
