@@ -98,7 +98,10 @@ async function resolveEmployeeReference(client, value) {
   const key = String(value).trim();
 
   const mapped = await mappedId(client, 'users', key, false);
-  if (mapped) return mapped;
+  if (mapped) {
+    const mappedEmployee = await client.query('SELECT id FROM employees WHERE id=$1 LIMIT 1', [mapped]);
+    if (mappedEmployee.rowCount) return mappedEmployee.rows[0].id;
+  }
 
   const byCode = await client.query(
     'SELECT id FROM employees WHERE lower(trim(employee_code)) = lower(trim($1)) LIMIT 1',
