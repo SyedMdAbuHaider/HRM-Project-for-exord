@@ -47,8 +47,6 @@ export default defineConfig(({ mode }) => {
           output: {
             manualChunks: {
               // Fix: vendor-react removed — React 19 ESM resolves inline, chunk was 0 bytes
-              // Supabase client — large but rarely changes
-              'vendor-supabase': ['@supabase/supabase-js'],
               // Recharts — only needed on dashboard
               'vendor-charts': ['recharts'],
               // Leaflet — only needed on live tracking view
