@@ -25,7 +25,7 @@ import {
   getConversationMembersBatch, extractMentionIds,
 } from '../chatService';
 import { UploadResult } from '../fileService';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 
