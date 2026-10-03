@@ -2,6 +2,12 @@ package com.exord.hrm
 
 import android.app.Application
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.location.Location
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -26,7 +32,15 @@ private val Ink=Color(0xFF111827)
 private val Muted=Color(0xFF6B7280)
 private val Card=Color(0xFFF8FAFC)
 
-class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b);setContent{ExordApp()}} }
+class MainActivity:ComponentActivity(){
+ private val locationPermission=registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){}
+ override fun onCreate(b:Bundle?){
+  super.onCreate(b)
+  if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED)
+   locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))
+  setContent{ExordApp()}
+ }
+}
 
 @Composable fun ExordApp(){
  val app=LocalContext.current.applicationContext as Application
@@ -61,7 +75,7 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
 @Composable private fun Portal(name:String,role:String,p:PaddingValues){Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Employee Portal",color=Red,fontWeight=FontWeight.Bold);Text(name,fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text(role.replace('_',' '),color=Muted);Spacer(Modifier.height(18.dp));BoxCard("My HRM"){Text("Attendance");Text("Clock in/out and review attendance.",color=Muted);Spacer(Modifier.height(8.dp));Text("Leave");Text("Submit and track leave requests.",color=Muted);Spacer(Modifier.height(8.dp));Text("Payroll");Text("Review salary information.",color=Muted)}}}
 @Composable private fun People(vm:HrmViewModel,p:PaddingValues){val es by vm.employees.collectAsState();LaunchedEffect(Unit){vm.loadEmployees()};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Workforce",color=Red,fontWeight=FontWeight.Bold);Text("People",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(es,key={it.id}){e->EmployeeCard(e)}}}}
 @Composable private fun EmployeeCard(e:Employee){Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(16.dp)){Text(e.full_name,fontWeight=FontWeight.Bold,fontSize=17.sp,color=Ink);Text(e.employee_code?:e.id,color=Red,fontSize=12.sp);Text(listOfNotNull(e.designation,e.department,e.unit_name).joinToString(" • "),color=Muted,fontSize=13.sp);e.email?.let{Text(it,color=Muted,fontSize=12.sp)}}}}
-@Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues){val rs by vm.attendance.collectAsState();Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Attendance",color=Red,fontWeight=FontWeight.Bold);Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard("Server-authoritative attendance"){Text("The server validates attendance policy, timing and geofence.",color=Muted);Spacer(Modifier.height(12.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({vm.recordAttendance("check_in")}){Text("Check in")};OutlinedButton({vm.recordAttendance("check_out")}){Text("Check out")}}};Spacer(Modifier.height(14.dp));Text("Recent records",fontWeight=FontWeight.Bold);LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(rs,key={it.id}){r->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)){Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text(r.type?:r.attendance_type?:"Attendance",fontWeight=FontWeight.Bold);Text(r.occurred_at,color=Muted,fontSize=12.sp)};if(r.is_late)Text("+"+r.late_minutes+" min",color=Red,fontWeight=FontWeight.Bold)}}}}}}}
+@Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues){val rs by vm.attendance.collectAsState();Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Attendance",color=Red,fontWeight=FontWeight.Bold);Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard("Server-authoritative attendance"){Text("The server validates attendance policy, timing and geofence.",color=Muted);Spacer(Modifier.height(12.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({vm.recordAttendance("check_in",null,null)}){Text("Check in")};OutlinedButton({vm.recordAttendance("check_out",null,null)}){Text("Check out")}}};Spacer(Modifier.height(14.dp));Text("Recent records",fontWeight=FontWeight.Bold);LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(rs,key={it.id}){r->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)){Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text(r.type?:r.attendance_type?:"Attendance",fontWeight=FontWeight.Bold);Text(r.occurred_at,color=Muted,fontSize=12.sp)};if(r.is_late)Text("+"+r.late_minutes+" min",color=Red,fontWeight=FontWeight.Bold)}}}}}}}
 @Composable private fun Requests(vm:HrmViewModel,role:String,p:PaddingValues){
  val leaves by vm.leaves.collectAsState()
  var type by remember{mutableStateOf("Annual Leave")};var start by remember{mutableStateOf("")};var end by remember{mutableStateOf("")}
