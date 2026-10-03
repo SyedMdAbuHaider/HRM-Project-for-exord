@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHRM } from '../store';
 import { UserRole } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import {
   Building2, Users, TrendingUp, Save, RefreshCw,
   CheckCircle, AlertCircle, X, Loader2, Lock,
