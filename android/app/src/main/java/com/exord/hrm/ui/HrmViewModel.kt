@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MultipartBody
 import retrofit2.HttpException
 
 data class HrmState(val loggedIn:Boolean=false,val name:String="",val role:String="",val loading:Boolean=false,val error:String?=null)
@@ -57,7 +60,8 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
   }
  }
  fun selectConversation(id:String){viewModelScope.launch{try{_messages.value=api.messages(mapOf("eq[conversation_id]" to id,"order" to "created_at.asc","limit" to "100")).data}catch(_:Exception){}}}
- fun sendChatMessage(conversationId:String,content:String){viewModelScope.launch{try{api.sendMessage(MessageCreateRequest(conversationId,content));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "Message failed")}}}
+ fun sendChatMessage(conversationId:String,content:String){viewModelScope.launch{try{api.sendMessage(MessageCreateRequest(conversation_id=conversationId,content=content.ifBlank{null}));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "Message failed")}}}
+ fun sendChatFile(conversationId:String,filename:String,mime:String,bytes:ByteArray){viewModelScope.launch{try{val body=bytes.toRequestBody(mime.toMediaTypeOrNull());val part=MultipartBody.Part.createFormData("file",filename,body);val uploaded=api.uploadChatFile(conversationId,part);api.sendMessage(MessageCreateRequest(conversation_id=conversationId,file_url=uploaded.url,file_name=uploaded.originalName?:filename,file_type=uploaded.mimeType?:mime,file_size=uploaded.size?:bytes.size.toLong()));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "File upload failed")}}}
  fun loadNotifications(){viewModelScope.launch{try{_notifications.value=api.notifications().notifications}catch(_:Exception){}}}
  fun markNotificationRead(id:String){viewModelScope.launch{try{api.markNotificationRead(id);loadNotifications()}catch(_:Exception){}}}
  fun loadAttendance(){viewModelScope.launch{try{_attendance.value=api.attendance().records}catch(_:Exception){} }}
