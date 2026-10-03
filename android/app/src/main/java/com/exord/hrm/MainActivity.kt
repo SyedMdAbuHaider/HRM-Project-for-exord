@@ -48,7 +48,7 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
  var tab by remember{mutableStateOf(0)};val items=nav(role)
  Scaffold(bottomBar={NavigationBar(containerColor=Color.White){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
-  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Simple("Chat","Direct, department and custom conversations with messages and attachments.",p);"Pay"->Payroll(vm,p);"More"->More(role,p){ pp-> Notifications(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
+  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p);"Pay"->Payroll(vm,p);"More"->More(role,p){ pp-> Notifications(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
 @Composable private fun Dashboard(vm:HrmViewModel,name:String,role:String,p:PaddingValues){
@@ -95,6 +95,24 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
      }
     }
    }
+  }
+ }
+}
+@Composable private fun Chat(vm:HrmViewModel,p:PaddingValues){
+ val conversations by vm.conversations.collectAsState(); val messages by vm.messages.collectAsState(); var text by remember{mutableStateOf("")}
+ LaunchedEffect(Unit){vm.loadChat()}
+ Column(Modifier.fillMaxSize().padding(p)){
+  Text("Chat",color=Red,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp,top=18.dp))
+  Text("Messages",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink,modifier=Modifier.padding(horizontal=18.dp))
+  if(conversations.isNotEmpty()){
+   LazyColumn(Modifier.fillMaxWidth().height(78.dp).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){items(conversations,key={it.id}){c->FilterChip(selected=c.id==conversations.firstOrNull()?.id,onClick={vm.selectConversation(c.id)},label={Text(c.name?:c.type)})}}
+  }
+  LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+   items(messages,key={it.id}){m->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(13.dp)){Text(m.content?:"Attachment",fontWeight=FontWeight.Medium);Text(m.created_at.orEmpty(),color=Muted,fontSize=10.sp)}}}
+  }
+  Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(text,{text=it},modifier=Modifier.weight(1f),singleLine=true,placeholder={Text("Message")})
+   Button(onClick={conversations.firstOrNull()?.id?.let{vm.sendChatMessage(it,text);text=""}},enabled=text.isNotBlank()&&conversations.isNotEmpty()){Text("Send")}
   }
  }
 }
