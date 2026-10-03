@@ -19,7 +19,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useHRM, FEATURES } from '../store';
 import { NATIVE_ACCESS, FEATURES_BY_GROUP, FEATURE_GROUPS } from '../featureRegistry';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { UserRole } from '../types';
 import {
   ShieldCheck, Search, X, Check, Package, DollarSign,
