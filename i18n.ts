@@ -1,20 +1,10 @@
-import {useCallback,useEffect,useMemo,useState} from 'react';
-
-export type TranslationKey=string;
-export type Language='en'|'bn';
-const KEY='exord-language';
-
-const dict:Record<Language,Record<string,string>>={en:{},bn:{}};
-export function loadUserLang():Language{try{return localStorage.getItem(KEY)==='bn'?'bn':'en'}catch{return'en'}}
-export function saveUserLang(lang:Language){try{localStorage.setItem(KEY,lang)}catch{}}
-export function getGreetingKey(hour=new Date().getHours()):TranslationKey{return hour<12?'good_morning':hour<18?'good_afternoon':'good_evening'}
-export function getGreetingEmoji(hour=new Date().getHours()){return hour<12?'☀️':hour<18?'🌤️':'🌙'}
-export function getFirstName(name:string){return name.trim().split(/\s+/)[0]||name}
-export function useLanguage(){
- const [lang,setLangState]=useState<Language>(loadUserLang);
- useEffect(()=>{saveUserLang(lang)},[lang]);
- const setLang=useCallback((next:Language)=>setLangState(next),[]);
- const toggleLang=useCallback(()=>setLangState(x=>x==='en'?'bn':'en'),[]);
- const t=useCallback((key:TranslationKey)=>dict[lang][key]||dict.en[key]||key,[lang]);
- return useMemo(()=>({t,lang,setLang,toggleLang}),[t,lang,setLang,toggleLang]);
-}
+import React,{createContext,useCallback,useContext,useState}from'react';
+export type Language='en'|'bn'; export type TranslationKey=string;
+const Context=createContext<any>(null); const KEY='exord-language';
+export const loadUserLang=():Language=>{try{return localStorage.getItem(KEY)==='bn'?'bn':'en'}catch{return'en'}};
+export const saveUserLang=(l:Language)=>{try{localStorage.setItem(KEY,l)}catch{}};
+export const getGreetingKey=(h=new Date().getHours()):TranslationKey=>h<12?'good_morning':h<18?'good_afternoon':'good_evening';
+export const getGreetingEmoji=(h=new Date().getHours())=>h<12?'☀️':h<18?'🌤️':'🌙';
+export const getFirstName=(n:string)=>n.trim().split(/\s+/)[0]||n;
+export const LanguageProvider:React.FC<React.PropsWithChildren>=({children})=>{const[lang,setLangState]=useState<Language>(loadUserLang);const setLang=useCallback((l:Language)=>{setLangState(l);saveUserLang(l)},[]);const toggleLang=useCallback(()=>setLang(lang==='en'?'bn':'en'),[lang,setLang]);const t=useCallback((k:TranslationKey)=>k,[lang]);return <Context.Provider value={{t,lang,setLang,toggleLang}}>{children}</Context.Provider>};
+export const useLanguage=()=>useContext(Context);
