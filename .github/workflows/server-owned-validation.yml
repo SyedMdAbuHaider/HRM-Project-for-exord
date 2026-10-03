@@ -1,0 +1,67 @@
+name: Server-Owned HRM Validation
+
+on:
+  push:
+    branches:
+      - migration/server-owned-foundation
+  pull_request:
+    branches:
+      - migration/server-owned-foundation
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hrm
+          POSTGRES_PASSWORD: hrm
+          POSTGRES_DB: exord_hrm_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hrm -d exord_hrm_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Syntax check
+        run: |
+          find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Apply schema
+        env:
+          DATABASE_URL: postgresql://hrm:hrm@127.0.0.1:5432/exord_hrm_ci
+          ACCESS_TOKEN_SECRET: ci-access-secret
+          REFRESH_TOKEN_SECRET: ci-refresh-secret
+        run: npm run migrate
+
+      - name: Start API
+        env:
+          DATABASE_URL: postgresql://hrm:hrm@127.0.0.1:5432/exord_hrm_ci
+          ACCESS_TOKEN_SECRET: ci-access-secret
+          REFRESH_TOKEN_SECRET: ci-refresh-secret
+          HOST: 127.0.0.1
+          PORT: 8081
+        run: |
+          node src/index.js > /tmp/hrm-api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8081/api/v1/health && exit 0
+            sleep 1
+          done
+          cat /tmp/hrm-api.log
+          exit 1
