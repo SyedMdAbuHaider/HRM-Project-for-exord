@@ -16,7 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MultipartBody
 import retrofit2.HttpException
 
-data class HrmState(val loggedIn:Boolean=false,val name:String="",val role:String="",val loading:Boolean=false,val error:String?=null)
+data class HrmState(val loggedIn:Boolean=false,val name:String="",val role:String="",val mustChangePassword:Boolean=false,val loading:Boolean=false,val error:String?=null)
 
 class HrmViewModel(app:Application):AndroidViewModel(app){
  private val sessions=SessionStore(app)
@@ -39,7 +39,7 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
 
  fun login(){viewModelScope.launch{_state.value=HrmState(loading=true);try{val r=api.login(LoginRequest(identifier.trim(),password));currentToken=r.accessToken;sessions.save(r.accessToken,r.refreshToken);bootstrap()}catch(e:Exception){_state.value=HrmState(error=e.message?:"Unable to sign in")}}}
 
- private suspend fun bootstrap(){try{val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:throw IllegalStateException("Employee profile not found");_profile.value=me;_state.value=HrmState(true,me.full_name,me.role.orEmpty());loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
+ private suspend fun bootstrap(){try{val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:throw IllegalStateException("Employee profile not found");_profile.value=me;_state.value=HrmState(true,me.full_name,me.role.orEmpty(),me.must_change_password);loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
 
  fun changePassword(current:String,newPassword:String){viewModelScope.launch{try{api.changePassword(PasswordChangeRequest(current,newPassword));_state.value=_state.value.copy(error=null)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Password change failed")}}}
  fun loadEmployees(){viewModelScope.launch{try{_employees.value=api.employees().employees}catch(_:Exception){}}}
