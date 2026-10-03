@@ -163,6 +163,7 @@ private fun lastKnownLocation(context:Context):Location?{
 @Composable private fun Chat(vm:HrmViewModel,p:PaddingValues,context:Context){
  val conversations by vm.conversations.collectAsState()
  val messages by vm.messages.collectAsState()
+ val selectedConversationId by vm.selectedConversationId.collectAsState()
  var text by remember{mutableStateOf("")}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   uri?.let{val conv=conversations.firstOrNull()?.id;if(conv!=null){
@@ -177,7 +178,7 @@ private fun lastKnownLocation(context:Context):Location?{
   Text("Messages",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink,modifier=Modifier.padding(horizontal=18.dp))
   if(conversations.isNotEmpty()){
    LazyRow(Modifier.fillMaxWidth().height(60.dp).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-    items(conversations,key={it.id}){c->FilterChip(selected=c.id==conversations.firstOrNull()?.id,onClick={vm.selectConversation(c.id)},label={Text(c.name?:c.type)})}
+    items(conversations,key={it.id}){c->FilterChip(selected=c.id==selectedConversationId,onClick={vm.selectConversation(c.id)},label={Text(c.name?:c.type)})}
    }
   }
   LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
