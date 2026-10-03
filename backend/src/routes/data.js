@@ -64,14 +64,9 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
   if(bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
   if(req.method==='POST'){
     const cols=keys.map(qi).join(',');
-    const values=[]; const tuples=bodies.map(row=>'('+keys.map(k=>{values.push(row[k]);return '
-  if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
-  const offset=bodyVals.length;
-  const shiftedWhere=where.map(w=>w.replace(/\\$(\\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
-  const out=await db.query('UPDATE '+qi(actual)+' SET '+keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+' WHERE '+shiftedWhere.join(' AND ')+' RETURNING *',[...bodyVals,...filterVals]);
-  return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
- }catch(e){next(e);} });
-+values.length;}).join(',')+')').join(',');
+    const values=[]; const tupleSql=[];
+    for(const row of bodies){ const placeholders=[]; for(const k of keys){ values.push(row[k]); placeholders.push('$'+values.length); } tupleSql.push('('+placeholders.join(',')+')'); }
+    const tuples=tupleSql.join(',');
     const conflict=req.query.onConflict?String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(','):'';
     const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
     const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
