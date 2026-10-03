@@ -65,3 +65,20 @@ jobs:
           done
           cat /tmp/hrm-api.log
           exit 1
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm install
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+      - name: Production build
+        env:
+          VITE_HRM_API_URL: http://127.0.0.1:8081
+        run: npm run build
