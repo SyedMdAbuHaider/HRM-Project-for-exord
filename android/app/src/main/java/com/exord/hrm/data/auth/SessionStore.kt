@@ -1,15 +1,17 @@
 package com.exord.hrm.data.auth
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
-private val Context.sessionStore by preferencesDataStore("exord_session")
-class SessionStore(private val context:Context){
- private val access=stringPreferencesKey("access_token")
- private val refresh=stringPreferencesKey("refresh_token")
- suspend fun save(a:String,r:String)=context.sessionStore.edit{it[access]=a;it[refresh]=r}
- suspend fun accessToken():String=context.sessionStore.data.first()[access].orEmpty()
- suspend fun clear()=context.sessionStore.edit{it.remove(access);it.remove(refresh)}
+class SessionStore(context:Context){
+ private val prefs=EncryptedSharedPreferences.create(
+  context,"exord_hrm_session",
+  MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+  EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+  EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+ )
+ fun save(access:String,refresh:String){prefs.edit().putString("access_token",access).putString("refresh_token",refresh).apply()}
+ fun accessToken():String=prefs.getString("access_token","").orEmpty()
+ fun refreshToken():String=prefs.getString("refresh_token","").orEmpty()
+ fun clear(){prefs.edit().clear().apply()}
 }
