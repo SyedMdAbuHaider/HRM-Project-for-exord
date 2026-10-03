@@ -25,7 +25,7 @@ class Builder {
     const token=localStorage.getItem('exord_auth_token'); const headers:any={'Accept':'application/json'}; if(token)headers.Authorization='Bearer '+token; if(this.method==='POST'||this.method==='PATCH'){headers['Content-Type']='application/json';}
     const r=await fetch(API_BASE+'/api/v1/data/'+encodeURIComponent(this.table)+(q.toString()?'?'+q.toString():''),{method:this.method,headers,body:this.body===undefined?undefined:JSON.stringify(this.body)});
     const json=await r.json().catch(()=>({})); if(!r.ok){return {data:null,error:{message:json.error||('HTTP '+r.status),status:r.status}};}
-    let data=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
+    let data:any=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
     return {data,error:json.error??null};
   }
   then(resolve:any,reject:any){return this.run().then(resolve,reject);}
