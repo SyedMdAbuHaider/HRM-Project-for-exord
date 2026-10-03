@@ -3,6 +3,7 @@ import kotlinx.serialization.Serializable
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.data.model.MeResponse
 
@@ -33,6 +34,7 @@ interface HrmApi {
  @GET("api/v1/hrm/leaves") suspend fun leaves():LeavesResponse
  @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:LeaveCreateRequest):LeaveResponse
  @GET("api/v1/hrm/salaries") suspend fun salaries():SalariesResponse
+ @PATCH("api/v1/hrm/leaves/{id}") suspend fun updateLeave(@retrofit2.http.Path("id") id:String,@Body body:Map<String,String?>):LeaveResponse
  @GET("api/v1/hrm/notifications") suspend fun notifications():NotificationsResponse
  @POST("api/v1/hrm/notifications/{id}/read") suspend fun markNotificationRead(@retrofit2.http.Path("id") id:String)
 }
