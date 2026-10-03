@@ -134,7 +134,457 @@ const addScopedReadFilters = (req, table, where, vals) => {
   if (table === 'attendance') { where.push('employee_id=$'+(vals.length+1)); vals.push(id); }
   if (table === 'gps_logs') { where.push('employee_id=$'+(vals.length+1)); vals.push(id); }
   if (table === 'conversations') { where.push('id IN (SELECT conversation_id FROM conversation_members WHERE employee_id=$'+(vals.length+1)+' AND hidden_at IS NULL)'); vals.push(id); }
-  if (table === 'messages') { where.push('conversation_id IN (SELECT conversation_id FROM conversation_members WHERE employee_id=$'+(vals.length+1)+' AND hidden_at IS NULL)'); vals.push(id); }
+  if (table === 'messages') { where.push('conversation_id IN (SELECT conversation_id FROM conversation_members WHERE employee_id=
+
+dataRouter.all('/:table', requireAuth, async (req,res,next) => {
+  try {
+    const table=req.params.table;
+    const write=['POST','PATCH','PUT','DELETE'].includes(req.method);
+    deny(req,table,write);
+    const actual=tableMap(table);
+
+    if (req.method === 'GET') {
+      const vals=[],where=[];
+      const fields=legacySelect(table,String(req.query.select||'*'));
+
+      for (const [k,v] of Object.entries(req.query)) {
+        const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+        if (!m) continue;
+        const op=m[1], col=m[2];
+        const mapped=table==='users'
+          ? ({id:'e.id',email:'e.email',name:'e.full_name',full_name:'e.full_name'}[col] || qi(col))
+          : qi(col);
+        if (op==='in') { where.push(mapped+'=ANY($'+(vals.length+1)+')'); vals.push(String(v).split(',')); }
+        else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+        else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1)); vals.push(v); }
+      }
+
+      addScopedReadFilters(req,table,where,vals);
+
+      let sql='SELECT '+fields+' FROM '+(table==='users'
+        ? 'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id'
+        : qi(actual));
+      if (where.length) sql+=' WHERE '+where.join(' AND ');
+      if (table==='role_capabilities' && /^role,\s*capabilities$/.test(String(req.query.select||''))) sql+=' GROUP BY role_code';
+
+      if (req.query.order) {
+        const p=String(req.query.order).split('.');
+        const col=table==='users' && p[0]==='name' ? 'e.full_name' : qi(p[0]);
+        sql+=' ORDER BY '+col+' '+(p[1]==='desc'?'DESC':'ASC');
+      }
+      sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000);
+      const out=await db.query(sql,vals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const filterVals=[],where=[];
+    for (const [k,v] of Object.entries(req.query)) {
+      const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+      if (!m) continue;
+      const op=m[1],col=m[2],mapped=qi(col);
+      if (op==='in') { where.push(mapped+'=ANY($'+(filterVals.length+1)+')'); filterVals.push(String(v).split(',')); }
+      else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+      else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1)); filterVals.push(v); }
+    }
+    if (req.query.id) { where.push('"id"=$'+(filterVals.length+1)); filterVals.push(String(req.query.id)); }
+
+    if (req.method==='DELETE') {
+      if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+      const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const raw=Array.isArray(req.body)?req.body:[req.body];
+    const bodies=raw.map(row=>bodyMap(table,row));
+    if (!bodies.length || !Object.keys(bodies[0]).length) return res.json({data:[],error:null});
+
+    if (table==='messages' && req.method==='POST') {
+      for (const row of bodies) {
+        if (!row.conversation_id) throw Object.assign(new Error('conversation_id is required'),{status:400});
+        const member=await db.query(
+          'SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2 AND hidden_at IS NULL LIMIT 1',
+          [row.conversation_id,req.auth.employeeId]
+        );
+        if (!member.rowCount) throw Object.assign(new Error('Not a member of this conversation'),{status:403});
+        row.sender_id=req.auth.employeeId;
+        delete row.employee_id;
+      }
+    }
+
+    const keys=Object.keys(bodies[0]);
+    if (bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) {
+      throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
+    }
+
+    if (req.method==='POST') {
+      const cols=keys.map(qi).join(',');
+      const values=[],tuples=[];
+      for (const row of bodies) {
+        const ph=[];
+        for (const key of keys) { values.push(row[key]); ph.push('$'+values.length); }
+        tuples.push('('+ph.join(',')+')');
+      }
+      const conflict=req.query.onConflict ? String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(',') : '';
+      const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
+      const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+      const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES '+tuples+' '+
+        (conflict ? 'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])) : '')+
+        ' RETURNING *';
+      const out=await db.query(sql,values);
+      return res.status(201).json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+    const body=bodies[0],bodyKeys=Object.keys(body),bodyVals=bodyKeys.map(k=>body[k]);
+    const offset=bodyVals.length;
+    const shifted=where.map(w=>w.replace(/\$(\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+    const out=await db.query(
+      'UPDATE '+qi(actual)+' SET '+bodyKeys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+
+      ' WHERE '+shifted.join(' AND ')+' RETURNING *',
+      [...bodyVals,...filterVals]
+    );
+    return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+  } catch(e) { next(e); }
+});
++(vals.length+1)+' AND hidden_at IS NULL)'); vals.push(id); }
+  if (table === 'conversation_members') { where.push('conversation_id IN (SELECT conversation_id FROM conversation_members WHERE employee_id=
+
+dataRouter.all('/:table', requireAuth, async (req,res,next) => {
+  try {
+    const table=req.params.table;
+    const write=['POST','PATCH','PUT','DELETE'].includes(req.method);
+    deny(req,table,write);
+    const actual=tableMap(table);
+
+    if (req.method === 'GET') {
+      const vals=[],where=[];
+      const fields=legacySelect(table,String(req.query.select||'*'));
+
+      for (const [k,v] of Object.entries(req.query)) {
+        const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+        if (!m) continue;
+        const op=m[1], col=m[2];
+        const mapped=table==='users'
+          ? ({id:'e.id',email:'e.email',name:'e.full_name',full_name:'e.full_name'}[col] || qi(col))
+          : qi(col);
+        if (op==='in') { where.push(mapped+'=ANY($'+(vals.length+1)+')'); vals.push(String(v).split(',')); }
+        else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+        else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1)); vals.push(v); }
+      }
+
+      addScopedReadFilters(req,table,where,vals);
+
+      let sql='SELECT '+fields+' FROM '+(table==='users'
+        ? 'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id'
+        : qi(actual));
+      if (where.length) sql+=' WHERE '+where.join(' AND ');
+      if (table==='role_capabilities' && /^role,\s*capabilities$/.test(String(req.query.select||''))) sql+=' GROUP BY role_code';
+
+      if (req.query.order) {
+        const p=String(req.query.order).split('.');
+        const col=table==='users' && p[0]==='name' ? 'e.full_name' : qi(p[0]);
+        sql+=' ORDER BY '+col+' '+(p[1]==='desc'?'DESC':'ASC');
+      }
+      sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000);
+      const out=await db.query(sql,vals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const filterVals=[],where=[];
+    for (const [k,v] of Object.entries(req.query)) {
+      const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+      if (!m) continue;
+      const op=m[1],col=m[2],mapped=qi(col);
+      if (op==='in') { where.push(mapped+'=ANY($'+(filterVals.length+1)+')'); filterVals.push(String(v).split(',')); }
+      else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+      else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1)); filterVals.push(v); }
+    }
+    if (req.query.id) { where.push('"id"=$'+(filterVals.length+1)); filterVals.push(String(req.query.id)); }
+
+    if (req.method==='DELETE') {
+      if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+      const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const raw=Array.isArray(req.body)?req.body:[req.body];
+    const bodies=raw.map(row=>bodyMap(table,row));
+    if (!bodies.length || !Object.keys(bodies[0]).length) return res.json({data:[],error:null});
+
+    if (table==='messages' && req.method==='POST') {
+      for (const row of bodies) {
+        if (!row.conversation_id) throw Object.assign(new Error('conversation_id is required'),{status:400});
+        const member=await db.query(
+          'SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2 AND hidden_at IS NULL LIMIT 1',
+          [row.conversation_id,req.auth.employeeId]
+        );
+        if (!member.rowCount) throw Object.assign(new Error('Not a member of this conversation'),{status:403});
+        row.sender_id=req.auth.employeeId;
+        delete row.employee_id;
+      }
+    }
+
+    const keys=Object.keys(bodies[0]);
+    if (bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) {
+      throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
+    }
+
+    if (req.method==='POST') {
+      const cols=keys.map(qi).join(',');
+      const values=[],tuples=[];
+      for (const row of bodies) {
+        const ph=[];
+        for (const key of keys) { values.push(row[key]); ph.push('$'+values.length); }
+        tuples.push('('+ph.join(',')+')');
+      }
+      const conflict=req.query.onConflict ? String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(',') : '';
+      const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
+      const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+      const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES '+tuples+' '+
+        (conflict ? 'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])) : '')+
+        ' RETURNING *';
+      const out=await db.query(sql,values);
+      return res.status(201).json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+    const body=bodies[0],bodyKeys=Object.keys(body),bodyVals=bodyKeys.map(k=>body[k]);
+    const offset=bodyVals.length;
+    const shifted=where.map(w=>w.replace(/\$(\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+    const out=await db.query(
+      'UPDATE '+qi(actual)+' SET '+bodyKeys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+
+      ' WHERE '+shifted.join(' AND ')+' RETURNING *',
+      [...bodyVals,...filterVals]
+    );
+    return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+  } catch(e) { next(e); }
+});
++(vals.length+1)+' AND hidden_at IS NULL)'); vals.push(id); }
+  if (table === 'stored_files') { where.push('(owner_id=
+
+dataRouter.all('/:table', requireAuth, async (req,res,next) => {
+  try {
+    const table=req.params.table;
+    const write=['POST','PATCH','PUT','DELETE'].includes(req.method);
+    deny(req,table,write);
+    const actual=tableMap(table);
+
+    if (req.method === 'GET') {
+      const vals=[],where=[];
+      const fields=legacySelect(table,String(req.query.select||'*'));
+
+      for (const [k,v] of Object.entries(req.query)) {
+        const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+        if (!m) continue;
+        const op=m[1], col=m[2];
+        const mapped=table==='users'
+          ? ({id:'e.id',email:'e.email',name:'e.full_name',full_name:'e.full_name'}[col] || qi(col))
+          : qi(col);
+        if (op==='in') { where.push(mapped+'=ANY($'+(vals.length+1)+')'); vals.push(String(v).split(',')); }
+        else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+        else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1)); vals.push(v); }
+      }
+
+      addScopedReadFilters(req,table,where,vals);
+
+      let sql='SELECT '+fields+' FROM '+(table==='users'
+        ? 'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id'
+        : qi(actual));
+      if (where.length) sql+=' WHERE '+where.join(' AND ');
+      if (table==='role_capabilities' && /^role,\s*capabilities$/.test(String(req.query.select||''))) sql+=' GROUP BY role_code';
+
+      if (req.query.order) {
+        const p=String(req.query.order).split('.');
+        const col=table==='users' && p[0]==='name' ? 'e.full_name' : qi(p[0]);
+        sql+=' ORDER BY '+col+' '+(p[1]==='desc'?'DESC':'ASC');
+      }
+      sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000);
+      const out=await db.query(sql,vals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const filterVals=[],where=[];
+    for (const [k,v] of Object.entries(req.query)) {
+      const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+      if (!m) continue;
+      const op=m[1],col=m[2],mapped=qi(col);
+      if (op==='in') { where.push(mapped+'=ANY($'+(filterVals.length+1)+')'); filterVals.push(String(v).split(',')); }
+      else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+      else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1)); filterVals.push(v); }
+    }
+    if (req.query.id) { where.push('"id"=$'+(filterVals.length+1)); filterVals.push(String(req.query.id)); }
+
+    if (req.method==='DELETE') {
+      if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+      const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const raw=Array.isArray(req.body)?req.body:[req.body];
+    const bodies=raw.map(row=>bodyMap(table,row));
+    if (!bodies.length || !Object.keys(bodies[0]).length) return res.json({data:[],error:null});
+
+    if (table==='messages' && req.method==='POST') {
+      for (const row of bodies) {
+        if (!row.conversation_id) throw Object.assign(new Error('conversation_id is required'),{status:400});
+        const member=await db.query(
+          'SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2 AND hidden_at IS NULL LIMIT 1',
+          [row.conversation_id,req.auth.employeeId]
+        );
+        if (!member.rowCount) throw Object.assign(new Error('Not a member of this conversation'),{status:403});
+        row.sender_id=req.auth.employeeId;
+        delete row.employee_id;
+      }
+    }
+
+    const keys=Object.keys(bodies[0]);
+    if (bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) {
+      throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
+    }
+
+    if (req.method==='POST') {
+      const cols=keys.map(qi).join(',');
+      const values=[],tuples=[];
+      for (const row of bodies) {
+        const ph=[];
+        for (const key of keys) { values.push(row[key]); ph.push('$'+values.length); }
+        tuples.push('('+ph.join(',')+')');
+      }
+      const conflict=req.query.onConflict ? String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(',') : '';
+      const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
+      const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+      const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES '+tuples+' '+
+        (conflict ? 'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])) : '')+
+        ' RETURNING *';
+      const out=await db.query(sql,values);
+      return res.status(201).json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+    const body=bodies[0],bodyKeys=Object.keys(body),bodyVals=bodyKeys.map(k=>body[k]);
+    const offset=bodyVals.length;
+    const shifted=where.map(w=>w.replace(/\$(\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+    const out=await db.query(
+      'UPDATE '+qi(actual)+' SET '+bodyKeys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+
+      ' WHERE '+shifted.join(' AND ')+' RETURNING *',
+      [...bodyVals,...filterVals]
+    );
+    return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+  } catch(e) { next(e); }
+});
++(vals.length+1)+' OR conversation_id IN (SELECT conversation_id FROM conversation_members WHERE employee_id=
+
+dataRouter.all('/:table', requireAuth, async (req,res,next) => {
+  try {
+    const table=req.params.table;
+    const write=['POST','PATCH','PUT','DELETE'].includes(req.method);
+    deny(req,table,write);
+    const actual=tableMap(table);
+
+    if (req.method === 'GET') {
+      const vals=[],where=[];
+      const fields=legacySelect(table,String(req.query.select||'*'));
+
+      for (const [k,v] of Object.entries(req.query)) {
+        const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+        if (!m) continue;
+        const op=m[1], col=m[2];
+        const mapped=table==='users'
+          ? ({id:'e.id',email:'e.email',name:'e.full_name',full_name:'e.full_name'}[col] || qi(col))
+          : qi(col);
+        if (op==='in') { where.push(mapped+'=ANY($'+(vals.length+1)+')'); vals.push(String(v).split(',')); }
+        else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+        else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1)); vals.push(v); }
+      }
+
+      addScopedReadFilters(req,table,where,vals);
+
+      let sql='SELECT '+fields+' FROM '+(table==='users'
+        ? 'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id'
+        : qi(actual));
+      if (where.length) sql+=' WHERE '+where.join(' AND ');
+      if (table==='role_capabilities' && /^role,\s*capabilities$/.test(String(req.query.select||''))) sql+=' GROUP BY role_code';
+
+      if (req.query.order) {
+        const p=String(req.query.order).split('.');
+        const col=table==='users' && p[0]==='name' ? 'e.full_name' : qi(p[0]);
+        sql+=' ORDER BY '+col+' '+(p[1]==='desc'?'DESC':'ASC');
+      }
+      sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000);
+      const out=await db.query(sql,vals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const filterVals=[],where=[];
+    for (const [k,v] of Object.entries(req.query)) {
+      const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
+      if (!m) continue;
+      const op=m[1],col=m[2],mapped=qi(col);
+      if (op==='in') { where.push(mapped+'=ANY($'+(filterVals.length+1)+')'); filterVals.push(String(v).split(',')); }
+      else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
+      else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1)); filterVals.push(v); }
+    }
+    if (req.query.id) { where.push('"id"=$'+(filterVals.length+1)); filterVals.push(String(req.query.id)); }
+
+    if (req.method==='DELETE') {
+      if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+      const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
+      return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    const raw=Array.isArray(req.body)?req.body:[req.body];
+    const bodies=raw.map(row=>bodyMap(table,row));
+    if (!bodies.length || !Object.keys(bodies[0]).length) return res.json({data:[],error:null});
+
+    if (table==='messages' && req.method==='POST') {
+      for (const row of bodies) {
+        if (!row.conversation_id) throw Object.assign(new Error('conversation_id is required'),{status:400});
+        const member=await db.query(
+          'SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2 AND hidden_at IS NULL LIMIT 1',
+          [row.conversation_id,req.auth.employeeId]
+        );
+        if (!member.rowCount) throw Object.assign(new Error('Not a member of this conversation'),{status:403});
+        row.sender_id=req.auth.employeeId;
+        delete row.employee_id;
+      }
+    }
+
+    const keys=Object.keys(bodies[0]);
+    if (bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) {
+      throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
+    }
+
+    if (req.method==='POST') {
+      const cols=keys.map(qi).join(',');
+      const values=[],tuples=[];
+      for (const row of bodies) {
+        const ph=[];
+        for (const key of keys) { values.push(row[key]); ph.push('$'+values.length); }
+        tuples.push('('+ph.join(',')+')');
+      }
+      const conflict=req.query.onConflict ? String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(',') : '';
+      const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
+      const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+      const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES '+tuples+' '+
+        (conflict ? 'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])) : '')+
+        ' RETURNING *';
+      const out=await db.query(sql,values);
+      return res.status(201).json({data:out.rows.map(r=>legacy(table,r)),error:null});
+    }
+
+    if (!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+    const body=bodies[0],bodyKeys=Object.keys(body),bodyVals=bodyKeys.map(k=>body[k]);
+    const offset=bodyVals.length;
+    const shifted=where.map(w=>w.replace(/\$(\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+    const out=await db.query(
+      'UPDATE '+qi(actual)+' SET '+bodyKeys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+
+      ' WHERE '+shifted.join(' AND ')+' RETURNING *',
+      [...bodyVals,...filterVals]
+    );
+    return res.json({data:out.rows.map(r=>legacy(table,r)),error:null});
+  } catch(e) { next(e); }
+});
++(vals.length+1)+' AND hidden_at IS NULL))'); vals.push(id); }
 };
 
 dataRouter.all('/:table', requireAuth, async (req,res,next) => {
