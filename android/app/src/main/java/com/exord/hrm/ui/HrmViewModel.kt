@@ -26,6 +26,8 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  private val _attendance=MutableStateFlow<List<AttendanceRecord>>(emptyList());val attendance=_attendance.asStateFlow()
  private val _leaves=MutableStateFlow<List<LeaveRequest>>(emptyList());val leaves=_leaves.asStateFlow()
  private val _salaries=MutableStateFlow<List<SalaryRecord>>(emptyList());val salaries=_salaries.asStateFlow()
+ private val _conversations=MutableStateFlow<List<Conversation>>(emptyList());val conversations=_conversations.asStateFlow()
+ private val _messages=MutableStateFlow<List<ChatMessage>>(emptyList());val messages=_messages.asStateFlow()
  private val _notifications=MutableStateFlow<List<NotificationRecord>>(emptyList());val notifications=_notifications.asStateFlow()
 
  init{viewModelScope.launch{currentToken=sessions.accessToken();if(currentToken.isNotBlank())bootstrap()}}
@@ -39,6 +41,21 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  fun createLeave(type:String,start:String,end:String,reason:String=""){viewModelScope.launch{try{api.createLeave(LeaveCreateRequest(type,start,end,reason.ifBlank{null}));loadLeaves()}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Leave request failed")}}}
  fun loadSalaries(){viewModelScope.launch{try{_salaries.value=api.salaries().salaries}catch(_:Exception){}}}
  fun updateLeave(id:String,status:String,rejectionReason:String?=null){viewModelScope.launch{try{api.updateLeave(id,mapOf("status" to status,"rejectionReason" to rejectionReason));loadLeaves()}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Leave approval failed")}}}
+ fun loadChat(){
+  viewModelScope.launch{
+   try{
+    val me=api.me().data?:return@launch
+    val memberships=api.conversationMembers(mapOf("eq[employee_id]" to me.id)).data
+    val ids=memberships.map{it.conversation_id}
+    if(ids.isEmpty()){_conversations.value=emptyList();_messages.value=emptyList();return@launch}
+    _conversations.value=api.conversations(mapOf("in[id]" to ids.joinToString(","),"limit" to "100")).data
+    val selected=_conversations.value.firstOrNull()?.id
+    if(selected!=null)_messages.value=api.messages(mapOf("eq[conversation_id]" to selected,"order" to "created_at.asc","limit" to "100")).data
+   }catch(_:Exception){}
+  }
+ }
+ fun selectConversation(id:String){viewModelScope.launch{try{_messages.value=api.messages(mapOf("eq[conversation_id]" to id,"order" to "created_at.asc","limit" to "100")).data}catch(_:Exception){}}}
+ fun sendChatMessage(conversationId:String,content:String){viewModelScope.launch{try{api.sendMessage(MessageCreateRequest(conversationId,content));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "Message failed")}}}
  fun loadNotifications(){viewModelScope.launch{try{_notifications.value=api.notifications().notifications}catch(_:Exception){}}}
  fun markNotificationRead(id:String){viewModelScope.launch{try{api.markNotificationRead(id);loadNotifications()}catch(_:Exception){}}}
  fun loadAttendance(){viewModelScope.launch{try{_attendance.value=api.attendance().records}catch(_:Exception){} }}
