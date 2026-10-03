@@ -28,6 +28,6 @@ interface HrmApi {
  @GET("api/v1/attendance") suspend fun attendance(@retrofit2.http.Query("limit") limit:Int=50): AttendanceListResponse
  @POST("api/v1/attendance") suspend fun recordAttendance(@Body request:AttendanceRequest): AttendanceResponse
  @GET("api/v1/hrm/leaves") suspend fun leaves():LeavesResponse
- @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:Map<String,String?>):LeaveResponse
+ @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:LeaveCreateRequest):LeaveResponse
  @GET("api/v1/hrm/salaries") suspend fun salaries():SalariesResponse
 }
