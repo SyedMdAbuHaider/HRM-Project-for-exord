@@ -34,7 +34,7 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
 
  fun login(){viewModelScope.launch{_state.value=HrmState(loading=true);try{val r=api.login(LoginRequest(identifier.trim(),password));currentToken=r.accessToken;sessions.save(r.accessToken,r.refreshToken);bootstrap()}catch(e:Exception){_state.value=HrmState(error=e.message?:"Unable to sign in")}}}
 
- private suspend fun bootstrap(){try{val me=api.me().user?:api.me().data?:throw IllegalStateException("Employee profile not found");_state.value=HrmState(true,me.full_name,me.role.orEmpty());loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
+ private suspend fun bootstrap(){try{val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:throw IllegalStateException("Employee profile not found");_state.value=HrmState(true,me.full_name,me.role.orEmpty());loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
 
  fun loadEmployees(){viewModelScope.launch{try{_employees.value=api.employees().employees}catch(_:Exception){}}}
  fun loadLeaves(){viewModelScope.launch{try{_leaves.value=api.leaves().leaves}catch(_:Exception){}}}
@@ -44,7 +44,7 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  fun loadChat(){
   viewModelScope.launch{
    try{
-    val me=api.me().user?:api.me().data?:return@launch
+    val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:return@launch
     val memberships=api.conversationMembers(mapOf("eq[employee_id]" to me.id)).data
     val ids=memberships.map{it.conversation_id}
     if(ids.isEmpty()){_conversations.value=emptyList();_messages.value=emptyList();return@launch}
