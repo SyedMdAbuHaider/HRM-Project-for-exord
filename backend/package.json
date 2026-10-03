@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "migrate": "node src/db/migrate.js"
+    "migrate": "node src/db/migrate.js",
+    "migrate:supabase": "node src/migration/import-supabase.js"
   },
   "dependencies": {
     "argon2": "^0.44.0",
