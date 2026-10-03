@@ -440,7 +440,20 @@ async function insertGeneric(client, target, row, sourceTable) {
   }
   if (target === 'profile_change_requests') {
     const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
-    const reviewer=await resolve(client,'users',pick(row,'reviewed_by','reviewedBy'));
+
+    const reviewerSource=pick(row,'reviewed_by','reviewedBy');
+    const reviewer=reviewerSource
+      ? await mappedId(client,'users',reviewerSource,false)
+      : null;
+
+    if (reviewerSource && !reviewer) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: 'Skipped profile change request because reviewed_by employee reference could not be resolved',
+      });
+      return;
+    }
+
     await client.query(`INSERT INTO profile_change_requests(id,employee_id,field_name,old_value,new_value,reason,status,reviewed_by,review_note,created_at,reviewed_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING`,
       [id,employee,textOrNull(pick(row,'field_name','fieldName'))||'',textOrNull(pick(row,'old_value','oldValue')),textOrNull(pick(row,'new_value','newValue')),
