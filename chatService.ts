@@ -13,7 +13,7 @@
  *  - sendMessage accepts mentionIds[]
  */
 
-import { supabase } from './supabaseClient';
+import { supabase } from './serverOwnedClient';
 import { User } from './types';
 
 export interface Conversation {
@@ -244,29 +244,47 @@ export const createCustomChannel = async (name: string, isPrivate: boolean, crea
 
 /** Background notification subscription (INSERT only) */
 export const subscribeToMessages = (convId: string, onMessage: (msg: Message) => void) => {
-  return supabase.channel(`messages:${convId}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
-      (payload) => onMessage(payload.new as Message))
-    .subscribe();
+  let lastSeen = '';
+  let active = true;
+  const poll = async () => {
+    if (!active) return;
+    try {
+      const rows = await getMessages(convId, 50);
+      const newest = rows[rows.length - 1];
+      if (newest && newest.id !== lastSeen) {
+        const index = lastSeen ? Math.max(0, rows.findIndex(m => m.id === lastSeen) + 1) : rows.length - 1;
+        rows.slice(index).forEach(onMessage);
+        lastSeen = newest.id;
+      }
+    } catch {}
+  };
+  void poll();
+  const timer = window.setInterval(poll, 3000);
+  return { unsubscribe: () => { active = false; window.clearInterval(timer); } };
 };
 
-/** Active thread subscription (INSERT + UPDATE for edits) */
 export const subscribeToConversation = (
   convId: string,
   onMessage: (msg: Message) => void,
   onEdit?: (msgId: string, newContent: string, editedAt: string) => void
 ) => {
-  const ch = supabase.channel(`conv:${convId}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
-      (payload) => onMessage(payload.new as Message));
-  if (onEdit) {
-    ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
-      (payload) => {
-        const msg = payload.new as any;
-        if (msg.edited_at && !msg.is_deleted) onEdit(msg.id, msg.content ?? '', msg.edited_at);
-      });
-  }
-  return ch.subscribe();
+  let previous = new Map<string, string>();
+  let active = true;
+  const poll = async () => {
+    if (!active) return;
+    try {
+      const rows = await getMessages(convId, 100);
+      for (const msg of rows) {
+        const signature = JSON.stringify([msg.content, msg.edited_at, msg.is_deleted]);
+        if (!previous.has(msg.id)) onMessage(msg);
+        else if (previous.get(msg.id) !== signature && msg.edited_at && onEdit) onEdit(msg.id, msg.content ?? '', msg.edited_at);
+        previous.set(msg.id, signature);
+      }
+    } catch {}
+  };
+  void poll();
+  const timer = window.setInterval(poll, 2500);
+  return { unsubscribe: () => { active = false; window.clearInterval(timer); } };
 };
 
 // ── Typing Indicators ────────────────────────────────────────────────────────
@@ -276,47 +294,14 @@ export const subscribeToConversation = (
 
 const _typingChannels = new Map<string, any>();
 
-const _getTypingChannel = (convId: string) => {
-  if (!_typingChannels.has(convId)) {
-    const ch = supabase.channel(`typing:${convId}`);
-    ch.subscribe();
-    _typingChannels.set(convId, ch);
-  }
-  return _typingChannels.get(convId)!;
+export const broadcastTyping = (_convId: string, _userId: string, _userName: string, _isTyping: boolean): void => {};
+
+export const subscribeToTyping = (_convId: string, _callback: (userId: string, userName: string, isTyping: boolean) => void) => {
+  return { unsubscribe: () => {} };
 };
 
-export const broadcastTyping = (convId: string, userId: string, userName: string, isTyping: boolean): void => {
-  try {
-    _getTypingChannel(convId).send({ type: 'broadcast', event: 'typing', payload: { userId, userName, isTyping } });
-  } catch { /* ignore if channel not ready */ }
-};
-
-export const subscribeToTyping = (convId: string, callback: (userId: string, userName: string, isTyping: boolean) => void) => {
-  const ch = _getTypingChannel(convId);
-  ch.on('broadcast', { event: 'typing' }, ({ payload }: any) => {
-    callback(payload.userId, payload.userName, payload.isTyping);
-  });
-  return ch;
-};
-
-export const cleanupTypingChannel = (convId: string): void => {
-  const ch = _typingChannels.get(convId);
-  if (ch) { supabase.removeChannel(ch); _typingChannels.delete(convId); }
-};
-
-/** Cleans up ALL open typing channels — call on component unmount or page hide. */
-export const cleanupAllTypingChannels = (): void => {
-  _typingChannels.forEach((ch) => { try { supabase.removeChannel(ch); } catch {} });
-  _typingChannels.clear();
-};
-
-// Automatically clean up on page hide (tab switch / mobile backgrounding).
-// This prevents ghost "X is typing" indicators when the user navigates away.
-if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') cleanupAllTypingChannels();
-  });
-}
+export const cleanupTypingChannel = (_convId: string): void => {};
+export const cleanupAllTypingChannels = (): void => {};
 
 // ── Mention Helpers ───────────────────────────────────────────────────────────
 
