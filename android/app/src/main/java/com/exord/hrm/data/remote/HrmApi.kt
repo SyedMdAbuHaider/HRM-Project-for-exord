@@ -7,6 +7,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.Header
+import okhttp3.MultipartBody
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.data.model.MeResponse
 import com.exord.hrm.data.model.Conversation
@@ -50,7 +51,7 @@ interface HrmApi {
  @GET("api/v1/data/conversations") suspend fun conversations(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<Conversation>>
  @GET("api/v1/data/messages") suspend fun messages(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<ChatMessage>>
  @POST("api/v1/data/messages") suspend fun sendMessage(@Body body:MessageCreateRequest):DataResponse<List<ChatMessage>>
- @Multipart @POST("api/v1/files/upload/chat") suspend fun uploadChatFile(@Header("X-Conv-Id") conversationId:String,@Part file:retrofit2.http.MultipartBody.Part):FileUploadResponse
+ @Multipart @POST("api/v1/files/upload/chat") suspend fun uploadChatFile(@Header("X-Conv-Id") conversationId:String,@Part file:MultipartBody.Part):FileUploadResponse
  @GET("api/v1/hrm/notifications") suspend fun notifications():NotificationsResponse
  @POST("api/v1/hrm/notifications/{id}/read") suspend fun markNotificationRead(@retrofit2.http.Path("id") id:String)
 }
