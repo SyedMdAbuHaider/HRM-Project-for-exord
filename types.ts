@@ -92,6 +92,7 @@ export interface User {
   baseSalary: number;
   department: string;
   deviceId: string;
+  unitId?: string;
   unitLocation: { lat: number; lng: number; };
   fatherName?: string;
   motherName?: string;
@@ -161,6 +162,7 @@ export interface Unit {
   unitType: UnitType;         // 'office' | 'pop' | 'both'
   deviceType?: DeviceType;    // what kind of device is at this POP
   snmpConfig?: SnmpConfig;    // Only relevant when unitType is 'pop' or 'both'
+  headUserId?: string;
 }
 
 export interface Department {
