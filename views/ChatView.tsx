@@ -13,7 +13,7 @@ import {
   Reply, SmilePlus, CheckCheck, FileText,
   Music, Download, ChevronDown, Paperclip,
 } from 'lucide-react';
-import FileUploadButton from './FileUploadButton';
+import FileUploadButton from '../components/FileUploadButton';
 import {
   Conversation, Message,
   getMyConversations, getMessages, sendMessage,
