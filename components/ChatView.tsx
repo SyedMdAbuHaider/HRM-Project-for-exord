@@ -37,7 +37,7 @@ import {
   hideConversationForMe,
 } from '../chatService';
 import { UploadResult, uploadChatFile } from '../fileService';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 let audioCtx: AudioContext | null = null;
