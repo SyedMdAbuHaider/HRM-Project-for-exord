@@ -27,9 +27,14 @@ const jsonOr = (v, fallback = {}) => {
   try { return JSON.parse(v); } catch { return fallback; }
 };
 const dateOrNull = (v) => {
-  if (!v) return null;
+  if (v === undefined || v === null || String(v).trim() === '') return null;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+const dateOnlyOrNull = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const s = String(v).trim().slice(0, 10);
+  return /^\\d{4}-\\d{2}-\\d{2}$/.test(s) ? s : null;
 };
 
 async function filesFor(table) {
@@ -184,14 +189,14 @@ async function importUsers(client, rows) {
         textOrNull(pick(r,'name','full_name','fullName')) || 'Imported Employee',
         textOrNull(pick(r,'email')),textOrNull(pick(r,'phone','phone_personal','phonePersonal')),password,roleId,departmentId,unitId,
         textOrNull(pick(r,'designation')),String(pick(r,'status','account_status') || 'ACTIVE').toUpperCase(),
-        pick(r,'join_date','joining_date','joinDate') ? String(pick(r,'join_date','joining_date','joinDate')).slice(0,10) : null,
+        dateOnlyOrNull(pick(r,'join_date','joining_date','joinDate')),
         Array.isArray(pick(r,'weekend_days','weekendDays')) ? pick(r,'weekend_days','weekendDays') : ['Friday','Saturday'],
         textOrNull(pick(r,'avatar','avatar_url','avatarUrl')),numOr(pick(r,'base_salary','baseSalary'),0),textOrNull(pick(r,'device_id','deviceId')),
         textOrNull(pick(r,'father_name','fatherName')),textOrNull(pick(r,'mother_name','motherName')),textOrNull(pick(r,'nid')),
         textOrNull(pick(r,'present_address','presentAddress')),textOrNull(pick(r,'permanent_address','permanentAddress')),
         dateOrNull(pick(r,'doc_deadline','docDeadline')),boolOr(pick(r,'must_change_password','mustChangePassword'),false),
         textOrNull(pick(r,'gender')),textOrNull(pick(r,'blood_group','bloodGroup')),textOrNull(pick(r,'dress_size','dressSize')),
-        pick(r,'date_of_birth','dateOfBirth') ? String(pick(r,'date_of_birth','dateOfBirth')).slice(0,10) : null,
+        dateOnlyOrNull(pick(r,'date_of_birth','dateOfBirth')),
         textOrNull(pick(r,'phone_official','phoneOfficial')),textOrNull(pick(r,'phone_personal','phonePersonal')),textOrNull(pick(r,'phone_alternative','phoneAlternative')),
         textOrNull(pick(r,'religion')),textOrNull(pick(r,'marital_status','maritalStatus')),textOrNull(pick(r,'nationality')),
         textOrNull(pick(r,'emergency_name','emergencyName')),textOrNull(pick(r,'emergency_address','emergencyAddress')),textOrNull(pick(r,'emergency_contact','emergencyContact')),
@@ -234,7 +239,7 @@ async function insertGeneric(client, target, row, sourceTable) {
     await client.query(`INSERT INTO leave_requests(id,employee_id,leave_type,start_date,end_date,reason,status,current_approver_role,rejection_reason,created_at,updated_at,metadata)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO NOTHING`,
       [id,employeeId,textOrNull(pick(row,'leave_type','leaveType','type'))||'OTHER',
-       String(pick(row,'start_date','startDate')||pick(row,'from_date')||'').slice(0,10),String(pick(row,'end_date','endDate')||pick(row,'to_date')||'').slice(0,10),
+       dateOnlyOrNull(pick(row,'start_date','startDate') ?? pick(row,'from_date')),dateOnlyOrNull(pick(row,'end_date','endDate') ?? pick(row,'to_date')),
        textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),textOrNull(pick(row,'current_approver_role','currentApproverRole')),
        textOrNull(pick(row,'rejection_reason','rejectionReason')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),
        dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString(),jsonOr(pick(row,'metadata'),{})]); return;
@@ -315,7 +320,7 @@ async function insertGeneric(client, target, row, sourceTable) {
     await client.query(`INSERT INTO schedule_change_requests(id,employee_id,change_type,requested_check_in,requested_check_out,start_date,end_date,reason,status,advance_notice_hours,policy_violation,manager_approved_by,hr_approved_by,rejected_by,rejection_reason,created_at,updated_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT(id) DO NOTHING`,
       [id,employee,String(pick(row,'change_type','changeType')||'TEMPORARY').toUpperCase(),pick(row,'requested_check_in','requestedCheckIn')||'09:00',pick(row,'requested_check_out','requestedCheckOut')||'18:00',
-       pick(row,'start_date','startDate')?String(pick(row,'start_date','startDate')).slice(0,10):null,pick(row,'end_date','endDate')?String(pick(row,'end_date','endDate')).slice(0,10):null,
+       dateOnlyOrNull(pick(row,'start_date','startDate')),dateOnlyOrNull(pick(row,'end_date','endDate')),
        textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),numOr(pick(row,'advance_notice_hours','advanceNoticeHours'),null),
        boolOr(pick(row,'policy_violation','policyViolation'),false),manager,hr,rejected,textOrNull(pick(row,'rejection_reason','rejectionReason')),
        dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString()]); return;
@@ -325,13 +330,13 @@ async function insertGeneric(client, target, row, sourceTable) {
     const approver=await resolve(client,'users',pick(row,'approved_by','approvedBy'));
     await client.query(`INSERT INTO weekend_work_permissions(id,employee_id,work_date,reason,status,approved_by,created_at)
       VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING`,
-      [id,employee,String(pick(row,'work_date','workDate')||'').slice(0,10),textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),approver,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+      [id,employee,dateOnlyOrNull(pick(row,'work_date','workDate')),textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),approver,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'duty_roster') {
     const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
     await client.query(`INSERT INTO duty_roster(id,employee_id,duty_date,check_in_time,check_out_time,shift_name,status,created_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
-      [id,employee,String(pick(row,'duty_date','dutyDate')||'').slice(0,10),pick(row,'check_in_time','checkInTime')||null,pick(row,'check_out_time','checkOutTime')||null,
+      [id,employee,dateOnlyOrNull(pick(row,'duty_date','dutyDate')),pick(row,'check_in_time','checkInTime')||null,pick(row,'check_out_time','checkOutTime')||null,
        textOrNull(pick(row,'shift_name','shiftName')),String(pick(row,'status')||'SCHEDULED').toUpperCase(),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'department_delegates') {
