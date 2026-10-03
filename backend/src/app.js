@@ -9,12 +9,14 @@ import { attendanceRouter } from './routes/attendance.js';
 import { employeesRouter } from './routes/employees.js';
 import { hrmRouter } from './routes/hrm.js';
 import { dataRouter } from './routes/data.js';
+import { filesRouter } from './routes/files.js';
 
 export const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(express.json({ limit: '2mb' }));
+app.use('/api/v1/files', filesRouter);
 
 if (config.corsOrigins.length) {
   app.use(cors({
