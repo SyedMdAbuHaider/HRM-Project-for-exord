@@ -508,7 +508,7 @@ const ChatView: React.FC = () => {
     Object.entries(typingUsers).filter(([, v]) => v).map(([uid]) => users.find(u => u.id === uid)?.name || 'Someone'),
     [typingUsers, users]);
 
-  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((a, b) => a + b, 0), [unreadCounts]);
+  const totalUnread = useMemo(() => Object.values(unreadCounts as Record<string, number>).reduce((a, b) => a + b, 0), [unreadCounts]);
 
   const getConvTitle = (conv: Conversation) =>
     conv.type === 'DIRECT' ? conv.otherUser?.name || 'Direct Message' : conv.name || conv.department || 'Channel';
