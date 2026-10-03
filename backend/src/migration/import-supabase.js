@@ -306,9 +306,12 @@ async function insertGeneric(client, target, row, sourceTable) {
   }
   if (target === 'schedule_change_requests') {
     const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
-    const manager=await resolve(client,'users',pick(row,'manager_approved_by','managerApprovedBy'));
-    const hr=await resolve(client,'users',pick(row,'hr_approved_by','hrApprovedBy'));
-    const rejected=await resolve(client,'users',pick(row,'rejected_by','rejectedBy'));
+    const managerSource=pick(row,'manager_approved_by','managerApprovedBy');
+    const manager=managerSource ? await mappedId(client,'users',managerSource,false) : null;
+    const hrSource=pick(row,'hr_approved_by','hrApprovedBy');
+    const hr=hrSource ? await mappedId(client,'users',hrSource,false) : null;
+    const rejectedSource=pick(row,'rejected_by','rejectedBy');
+    const rejected=rejectedSource ? await mappedId(client,'users',rejectedSource,false) : null;
     await client.query(`INSERT INTO schedule_change_requests(id,employee_id,change_type,requested_check_in,requested_check_out,start_date,end_date,reason,status,advance_notice_hours,policy_violation,manager_approved_by,hr_approved_by,rejected_by,rejection_reason,created_at,updated_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT(id) DO NOTHING`,
       [id,employee,String(pick(row,'change_type','changeType')||'TEMPORARY').toUpperCase(),pick(row,'requested_check_in','requestedCheckIn')||'09:00',pick(row,'requested_check_out','requestedCheckOut')||'18:00',
