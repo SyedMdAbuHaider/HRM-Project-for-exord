@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.platform.LocalContext
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.ui.HrmViewModel
 
@@ -165,8 +164,9 @@ private fun lastKnownLocation(context:Context):Location?{
  val messages by vm.messages.collectAsState()
  val selectedConversationId by vm.selectedConversationId.collectAsState()
  var text by remember{mutableStateOf("")}
- val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
-  uri?.let{val conv=conversations.firstOrNull()?.id;if(conv!=null){
+ val activeConversation=selectedConversationId
+  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  uri?.let{val conv=activeConversation;if(conv!=null){
    val name=it.lastPathSegment?.substringAfterLast('/')?: "attachment"
    val mime=context.contentResolver.getType(it)?: "application/octet-stream"
    context.contentResolver.openInputStream(it)?.use{stream->vm.sendChatFile(conv,name,mime,stream.readBytes())}
@@ -182,12 +182,12 @@ private fun lastKnownLocation(context:Context):Location?{
    }
   }
   LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-   items(messages,key={it.id}){m->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(13.dp)){Text(m.content?:m.file_name?: "Attachment",fontWeight=FontWeight.Medium);Text(m.created_at.orEmpty(),color=Muted,fontSize=10.sp)}}}
+   items(messages,key={it.id}){m->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(13.dp)){Text(if(m.is_deleted) "Message deleted" else (m.content?:m.file_name?: "Attachment"),fontWeight=FontWeight.Medium);if(m.file_url!=null) Text("Attachment: "+(m.file_name?:m.file_type?: "file"),color=Red,fontSize=12.sp);Text(m.created_at.orEmpty(),color=Muted,fontSize=10.sp)}}}
   }
   Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
    OutlinedTextField(text,{text=it},modifier=Modifier.weight(1f),singleLine=true,placeholder={Text("Message")})
-   OutlinedButton(onClick={picker.launch("*/*")},enabled=conversations.isNotEmpty()){Text("Attach")}
-   Button(onClick={conversations.firstOrNull()?.id?.let{vm.sendChatMessage(it,text);text=""}},enabled=text.isNotBlank()&&conversations.isNotEmpty()){Text("Send")}
+   OutlinedButton(onClick={picker.launch("*/*")},enabled=activeConversation!=null){Text("Attach")}
+   Button(onClick={activeConversation?.let{vm.sendChatMessage(it,text);text=""}},enabled=text.isNotBlank()&&activeConversation!=null){Text("Send")}
   }
  }
 }
