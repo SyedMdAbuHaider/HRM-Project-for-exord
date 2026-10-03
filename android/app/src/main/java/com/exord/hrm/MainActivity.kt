@@ -5,8 +5,7 @@ import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
-import android.content.ContextManager
-import android.location.Location
+import android.location.LocationManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
@@ -83,7 +82,8 @@ private fun lastKnownLocation(context:Context):Location?{
  return lm.getProviders(true).asSequence().mapNotNull{runCatching{lm.getLastKnownLocation(it)}.getOrNull()}.maxByOrNull{it.time}
 }
 @Composable private fun Attendance(vm:HrmViewModel,p:PaddingValues){
- val context=LocalContext.currentval rs by vm.attendance.collectAsState();Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Attendance",color=Red,fontWeight=FontWeight.Bold);Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard("Server-authoritative attendance"){Text("The server validates attendance policy, timing and geofence.",color=Muted);Spacer(Modifier.height(12.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({lastKnownLocation(context)?.let{vm.recordAttendance("check_in",it.latitude,it.longitude)} ?: vm.recordAttendance("check_in",null,null)}){Text("Check in")};OutlinedButton({lastKnownLocation(context)?.let{vm.recordAttendance("check_out",it.latitude,it.longitude)} ?: vm.recordAttendance("check_out",null,null)}){Text("Check out")}}};Spacer(Modifier.height(14.dp));Text("Recent records",fontWeight=FontWeight.Bold);LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(rs,key={it.id}){r->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)){Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text(r.type?:r.attendance_type?:"Attendance",fontWeight=FontWeight.Bold);Text(r.occurred_at,color=Muted,fontSize=12.sp)};if(r.is_late)Text("+"+r.late_minutes+" min",color=Red,fontWeight=FontWeight.Bold)}}}}}}}
+ val context=LocalContext.current
+ val rs by vm.attendance.collectAsState();Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Attendance",color=Red,fontWeight=FontWeight.Bold);Text("Clock",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard("Server-authoritative attendance"){Text("The server validates attendance policy, timing and geofence.",color=Muted);Spacer(Modifier.height(12.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({lastKnownLocation(context)?.let{vm.recordAttendance("check_in",it.latitude,it.longitude)} ?: vm.recordAttendance("check_in",null,null)}){Text("Check in")};OutlinedButton({lastKnownLocation(context)?.let{vm.recordAttendance("check_out",it.latitude,it.longitude)} ?: vm.recordAttendance("check_out",null,null)}){Text("Check out")}}};Spacer(Modifier.height(14.dp));Text("Recent records",fontWeight=FontWeight.Bold);LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(rs,key={it.id}){r->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)){Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text(r.type?:r.attendance_type?:"Attendance",fontWeight=FontWeight.Bold);Text(r.occurred_at,color=Muted,fontSize=12.sp)};if(r.is_late)Text("+"+r.late_minutes+" min",color=Red,fontWeight=FontWeight.Bold)}}}}}}}
 @Composable private fun Requests(vm:HrmViewModel,role:String,p:PaddingValues){
  val leaves by vm.leaves.collectAsState()
  var type by remember{mutableStateOf("Annual Leave")};var start by remember{mutableStateOf("")};var end by remember{mutableStateOf("")}
