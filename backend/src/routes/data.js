@@ -42,19 +42,37 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
    let sql='SELECT '+fields+' FROM '+(t==='users'?'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id':qi(actual)); if(where.length)sql+=' WHERE '+where.join(' AND '); if(t==='role_capabilities' && (String(req.query.select||'')==='role, capabilities'||String(req.query.select||'')==='role,capabilities')) sql+=' GROUP BY role_code';
    if(req.query.order){const p=String(req.query.order).split('.');sql+=' ORDER BY '+(t==='users'&&p[0]==='name'?'e.full_name':qi(p[0]))+' '+(p[1]==='desc'?'DESC':'ASC');} sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000); const out=await db.query(sql,vals); return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
   }
-  const id=req.query.id; if(req.method==='DELETE'){if(!id)throw Object.assign(new Error('id is required'),{status:400});const out=await db.query('DELETE FROM '+qi(actual)+' WHERE id=$1 RETURNING *',[id]);return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});}
-  const body=bodyMap(t,req.body); const keys=Object.keys(body); if(!keys.length)return res.json({data:[],error:null}); const vals=keys.map(k=>body[k]);
+  const filterVals=[],where=[];
+  for(const [k,v] of Object.entries(req.query)){
+    const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\\[(.+)\\]$/);
+    if(!m) continue;
+    const op=m[1],col=m[2],mapped=qi(col);
+    if(op==='in'){where.push(mapped+'=ANY($'+(filterVals.length+1)+')');filterVals.push(String(v).split(','));}
+    else if(op==='is'&&String(v)==='null') where.push(mapped+' IS NULL');
+    else {where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1));filterVals.push(v);}
+  }
+  if(req.query.id){where.push('"id"=$'+(filterVals.length+1));filterVals.push(String(req.query.id));}
+  if(req.method==='DELETE'){
+    if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+    const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
+    return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
+  }
+  const body=bodyMap(t,req.body); const keys=Object.keys(body);
+  if(!keys.length)return res.json({data:[],error:null});
+  const bodyVals=keys.map(k=>body[k]);
   if(req.method==='POST'){
     const cols=keys.map(qi).join(',');
-    const ph=vals.map((_,i)=>'$'+(i+1)).join(',');
+    const ph=bodyVals.map((_,i)=>'$'+(i+1)).join(',');
     const conflict=req.query.onConflict?String(req.query.onConflict).split(',').map(qi).join(','):'';
-    const updates=keys.filter(k=>!String(req.query.onConflict||'').split(',').includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
+    const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
+    const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
     const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES ('+ph+') '+(conflict?'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])):'')+' RETURNING *';
-    const out=await db.query(sql,vals);
+    const out=await db.query(sql,bodyVals);
     return res.status(201).json({data:out.rows.map(r=>legacy(t,r)),error:null});
   }
-  if(!id)throw Object.assign(new Error('id is required'),{status:400});
-  const sets=keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',');
-  const out=await db.query('UPDATE '+qi(actual)+' SET '+sets+' WHERE id=$'+(vals.length+1)+' RETURNING *',[...vals,id]);
+  if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+  const offset=bodyVals.length;
+  const shiftedWhere=where.map(w=>w.replace(/\\$(\\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+  const out=await db.query('UPDATE '+qi(actual)+' SET '+keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+' WHERE '+shiftedWhere.join(' AND ')+' RETURNING *',[...bodyVals,...filterVals]);
   return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
  }catch(e){next(e);} });
