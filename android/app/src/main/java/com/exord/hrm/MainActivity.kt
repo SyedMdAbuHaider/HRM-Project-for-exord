@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -154,6 +155,8 @@ private fun lastKnownLocation(context:Context):Location?{
  }
 }
 @Composable private fun Chat(vm:HrmViewModel,p:PaddingValues){
+ val context=LocalContext.current
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->uri?.let{val conv=vm.conversations.value.firstOrNull()?.id;if(conv!=null){val name=it.lastPathSegment?.substringAfterLast('/')?:"attachment";val mime=context.contentResolver.getType(it)?:"application/octet-stream";context.contentResolver.openInputStream(it)?.use{stream->vm.sendChatFile(conv,name,mime,stream.readBytes())}}}}
  val conversations by vm.conversations.collectAsState(); val messages by vm.messages.collectAsState(); var text by remember{mutableStateOf("")}
  LaunchedEffect(Unit){vm.loadChat()}
  Column(Modifier.fillMaxSize().padding(p)){
@@ -167,6 +170,7 @@ private fun lastKnownLocation(context:Context):Location?{
   }
   Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
    OutlinedTextField(text,{text=it},modifier=Modifier.weight(1f),singleLine=true,placeholder={Text("Message")})
+   OutlinedButton(onClick={picker.launch("*/*")},enabled=conversations.isNotEmpty()){Text("Attach")}
    Button(onClick={conversations.firstOrNull()?.id?.let{vm.sendChatMessage(it,text);text=""}},enabled=text.isNotBlank()&&conversations.isNotEmpty()){Text("Send")}
   }
  }
