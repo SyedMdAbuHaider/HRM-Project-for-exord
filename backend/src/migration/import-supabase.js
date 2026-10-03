@@ -166,7 +166,7 @@ async function importUsers(client, rows) {
         phone_alternative,religion,marital_status,nationality,emergency_name,emergency_address,emergency_contact,
         emergency_relation,bank_name,bank_account_number,bank_branch,bank_routing_number,festival_leave_1_choice,
         festival_leave_2_choice,festival_worked_period,living_children,late_count,designation_track
-      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48)
+      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47)
       ON CONFLICT(id) DO UPDATE SET full_name=EXCLUDED.full_name,email=EXCLUDED.email,phone=EXCLUDED.phone,password_hash=COALESCE(EXCLUDED.password_hash,employees.password_hash),
       role_id=EXCLUDED.role_id,department_id=EXCLUDED.department_id,unit_id=EXCLUDED.unit_id,designation=EXCLUDED.designation,status=EXCLUDED.status,
       joining_date=EXCLUDED.joining_date,weekend_days=EXCLUDED.weekend_days,avatar_url=EXCLUDED.avatar_url,base_salary=EXCLUDED.base_salary,
