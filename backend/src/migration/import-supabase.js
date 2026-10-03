@@ -236,12 +236,21 @@ async function insertGeneric(client, target, row, sourceTable) {
   }
   if (target === 'leave_requests') {
     const employeeId=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    const startDate=dateOnlyOrNull(pick(row,'start_date','startDate') ?? pick(row,'from_date'));
+    const endDate=dateOnlyOrNull(pick(row,'end_date','endDate') ?? pick(row,'to_date'));
+    if (!startDate || !endDate) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: 'Skipped leave request because required start_date/end_date could not be recovered from legacy data',
+      });
+      return;
+    }
     await client.query(`INSERT INTO leave_requests(id,employee_id,leave_type,start_date,end_date,reason,status,current_approver_role,rejection_reason,created_at,updated_at,metadata)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO NOTHING`,
       [id,employeeId,textOrNull(pick(row,'leave_type','leaveType','type'))||'OTHER',
-       dateOnlyOrNull(pick(row,'start_date','startDate') ?? pick(row,'from_date')),dateOnlyOrNull(pick(row,'end_date','endDate') ?? pick(row,'to_date')),
-       textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),textOrNull(pick(row,'current_approver_role','currentApproverRole')),
-       textOrNull(pick(row,'rejection_reason','rejectionReason')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),
+       startDate,endDate,textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),
+       textOrNull(pick(row,'current_approver_role','currentApproverRole')),textOrNull(pick(row,'rejection_reason','rejectionReason')),
+       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),
        dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString(),jsonOr(pick(row,'metadata'),{})]); return;
   }
   if (target === 'loan_requests') {
