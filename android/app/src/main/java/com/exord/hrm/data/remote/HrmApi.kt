@@ -18,6 +18,9 @@ import com.exord.hrm.data.model.MeResponse
 @Serializable data class LeavesResponse(val leaves:List<com.exord.hrm.data.model.LeaveRequest>)
 @Serializable data class LeaveResponse(val leave:com.exord.hrm.data.model.LeaveRequest)
 @Serializable data class SalariesResponse(val salaries:List<com.exord.hrm.data.model.SalaryRecord>)
+@Serializable data class NotificationRecord(val id:String,val title:String?=null,val message:String?=null,val body:String?=null,val read_at:String?=null,val created_at:String?=null)
+@Serializable data class NotificationsResponse(val notifications:List<NotificationRecord>)
+
 @Serializable data class LeaveCreateRequest(val leaveType:String,val startDate:String,val endDate:String,val reason:String?=null)
 interface HrmApi {
  @GET("api/v1/me") suspend fun me(): MeResponse
@@ -30,4 +33,6 @@ interface HrmApi {
  @GET("api/v1/hrm/leaves") suspend fun leaves():LeavesResponse
  @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:LeaveCreateRequest):LeaveResponse
  @GET("api/v1/hrm/salaries") suspend fun salaries():SalariesResponse
+ @GET("api/v1/hrm/notifications") suspend fun notifications():NotificationsResponse
+ @POST("api/v1/hrm/notifications/{id}/read") suspend fun markNotificationRead(@retrofit2.http.Path("id") id:String)
 }
