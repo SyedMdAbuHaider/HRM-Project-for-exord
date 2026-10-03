@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useHRM } from '../store';
 import { UserRole } from '../types';
 import { FEATURE_REGISTRY } from '../featureRegistry';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import {
   LayoutDashboard, Users, Clock, Map, DollarSign,
   Calendar, ShieldAlert, LogOut, UserCircle, X,
