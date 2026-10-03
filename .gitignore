@@ -61,3 +61,7 @@ migrated_prompt_history/
 *.bak_*
 *.bak2
 *.bak3
+
+# Supabase migration exports / reports
+supabase-export/
+/srv/hrm-migration/
