@@ -53,9 +53,11 @@ meRouter.post('/password', requireAuth, async (req, res, next) => {
       const mustChange = (await db.query('SELECT must_change_password FROM employees WHERE id=$1',[req.auth.employeeId])).rows[0]?.must_change_password;
       if (mustChange === true) {
         // Initial-access credentials may be replaced without requiring the temporary password again.
-      } else if (!currentPassword) return res.status(400).json({ error: 'Current password is required' });
-      if (!(await argon2.verify(rows[0].password_hash, currentPassword))) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
+      } else {
+        if (!currentPassword) return res.status(400).json({ error: 'Current password is required' });
+        if (!(await argon2.verify(rows[0].password_hash, currentPassword))) {
+          return res.status(401).json({ error: 'Current password is incorrect' });
+        }
       }
     }
 
