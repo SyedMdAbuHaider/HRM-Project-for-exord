@@ -5,7 +5,7 @@ plugins {
 }
 android { namespace="com.exord.hrm"; compileSdk=36
     buildFeatures { buildConfig = true }
-    defaultConfig { applicationId="com.exord.hrm"; minSdk=26; targetSdk=36; versionCode=1; versionName="0.1.0"; buildConfigField("String","HRM_API_URL",project.findProperty("hrmApiUrl")?.toString()?.let { ""$it"" } ?: ""http://10.0.2.2:8081/"") }
+    defaultConfig { applicationId="com.exord.hrm"; minSdk=26; targetSdk=36; versionCode=1; versionName="0.1.0"; buildConfigField("String","HRM_API_URL",project.findProperty("hrmApiUrl")?.toString()?.let { "\\"$it\\"" } ?: "\\"http://10.0.2.2:8081/\\"") }
 }
 kotlin { jvmToolchain(17) }
 dependencies {
