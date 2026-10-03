@@ -21,6 +21,9 @@ interface State {
  *   </ErrorBoundary>
  */
 class ErrorBoundary extends React.Component<any, any> {
+  declare props: any;
+  declare state: any;
+  declare setState: React.Component<any, any>['setState'];
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
