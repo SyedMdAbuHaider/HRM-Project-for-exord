@@ -997,13 +997,14 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = useCallback(async () => {
     if (currentUser) await addActivityLog('USER_LOGOUT', 'AUTH', `${currentUser.name} ended session.`, 'LOW');
-    try { await api.post('/api/v1/auth/logout', {}); } catch {}
+    try { await api.post('/api/v1/auth/logout', { refreshToken: localStorage.getItem('exord_refresh_token') }); } catch {}
 
     setCurrentUser(null); setIsTracking(false); setNotifications([]);
     try { localStorage.removeItem('exord-session'); } catch {}
     try { localStorage.removeItem('exord-active-view'); } catch {}
     try { sessionStorage.removeItem('supabase_token'); } catch {}
     try { localStorage.removeItem('exord_auth_token'); } catch {}
+    try { localStorage.removeItem('exord_refresh_token'); } catch {}
   }, [currentUser, addActivityLog]);
 
   const changePassword = async (newPassword: string, currentPassword?: string) => {
