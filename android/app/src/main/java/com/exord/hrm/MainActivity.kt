@@ -47,7 +47,7 @@ class MainActivity:ComponentActivity(){
  val app=LocalContext.current.applicationContext as Application
  val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
  val s by vm.state.collectAsState()
- MaterialTheme(colorScheme=lightColorScheme(primary=Red)){Surface(Modifier.fillMaxSize()){if(s.loggedIn)Shell(vm,s.name,s.role)else Login(vm,s.loading,s.error)}}
+ MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn)Shell(vm,s.name,s.role)else Login(vm,s.loading,s.error)}}
 }
 @Composable fun Login(vm:HrmViewModel,loading:Boolean,error:String?){
  Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
@@ -61,8 +61,8 @@ class MainActivity:ComponentActivity(){
 private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal","Clock","Chat","Pay","More");"MANAGER"->listOf("Home","Team","Requests","Chat","More");"CO_ADMIN","HR"->listOf("Home","People","Requests","Chat","More");else->listOf("Home","People","Attend","Chat","More") }
 
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
- var tab by remember{mutableStateOf(0)};val items=nav(role)
- Scaffold(bottomBar={NavigationBar(containerColor=Color.White){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
+ var tab by remember{mutableStateOf(0)};var morePage by remember{mutableStateOf<String?>(null)};val items=nav(role)
+ Scaffold(bottomBar={NavigationBar(containerColor=Color(0xE60F172A), tonalElevation=0.dp){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
   when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p);"Pay"->Payroll(vm,p);"More"->More(role,p){ f,pp-> if(f=="Notifications") Notifications(vm,pp) else Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
@@ -100,7 +100,21 @@ private fun lastKnownLocation(context:Context):Location?{
  Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.status?:s.period_status?:"",color=Muted,fontSize=12.sp)}}}}}
 }
 @Composable private fun More(role:String,p:PaddingValues,onSelect:(String,PaddingValues)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){TextButton({if(f=="Profile"||f=="Notifications")onSelect(f,p)},Modifier.fillMaxWidth()){Text(f,Modifier.fillMaxWidth().padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}}
-@Composable private fun Profile(vm:HrmViewModel,p:PaddingValues){
+
+@Composable private fun Notifications(vm:HrmViewModel,p:PaddingValues){
+ val ns by vm.notifications.collectAsState()
+ LaunchedEffect(Unit){vm.loadNotifications()}
+ Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){
+  Text("Notifications",color=Red,fontWeight=FontWeight.Bold);Text("Updates",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp))
+  LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(ns,key={it.id}){n->
+   Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(16.dp)){
+    Text(n.title?:"Notification",fontWeight=FontWeight.Bold);Text(n.message?:n.body.orEmpty(),color=Muted,fontSize=13.sp);Text(n.created_at.orEmpty(),color=Muted,fontSize=11.sp)
+    if(n.read_at==null)TextButton({vm.markNotificationRead(n.id)}){Text("Mark as read",color=Red)}
+   }}
+  }}
+ }
+}
+\n@Composable private fun Profile(vm:HrmViewModel,p:PaddingValues){
  val me by vm.profile.collectAsState()
  var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var message by remember{mutableStateOf("")}
  LaunchedEffect(Unit){if(me==null){vm.loadEmployees()}}
