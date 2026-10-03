@@ -138,7 +138,7 @@ async function importDepartments(client, rows) {
 function normalizePassword(value) {
   if (!value) return null;
   const s = String(value);
-  if (/^\\$argon2(id|i|d)\\$/.test(s) || /^\\$2[aby]\\$/.test(s) || /^pbkdf2[:$]/i.test(s)) return s;
+  if (/^\$argon2(id|i|d)\$/.test(s) || /^\$2[aby]\$/.test(s) || /^pbkdf2[:$]/i.test(s)) return s;
   return null;
 }
 
