@@ -20,7 +20,7 @@ interface State {
  *     <PayrollView />
  *   </ErrorBoundary>
  */
-class ErrorBoundary extends React.Component<Props, State> {
+class ErrorBoundary extends React.Component<any, any> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
