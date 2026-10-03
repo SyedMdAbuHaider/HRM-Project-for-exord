@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import argon2 from 'argon2';
-import { pool, withTransaction } from '../db/pool.js';
+import { db, withTransaction } from '../db/pool.js';
 import { IMPORT_ORDER, TABLE_MAP } from './table-map.js';
 
 const args = new Set(process.argv.slice(2));
@@ -421,7 +421,7 @@ async function insertGeneric(client, target, row, sourceTable) {
 }
 
 async function main() {
-  const client = await pool.connect();
+  const client = await db.connect();
   try {
     if (RESET_MAP && !DRY_RUN) await client.query('TRUNCATE migration_id_map');
     const report=[];
@@ -442,6 +442,6 @@ async function main() {
     }
     console.table(report);
     console.log(DRY_RUN ? 'Dry run complete. No data was written.' : 'Supabase import complete.');
-  } finally { client.release(); await pool.end(); }
+  } finally { client.release(); await db.end(); }
 }
 main().catch((err)=>{ console.error(err); process.exit(1); });
