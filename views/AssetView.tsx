@@ -486,7 +486,7 @@ const AssetView: React.FC = () => {
   const totalActive = assets.filter(a => a.status === 'ACTIVE').length;
   const totalMaint = assets.filter(a => a.status === 'MAINTENANCE').length;
   const unitCounts = assets.reduce((acc, a) => { acc[a.location_unit] = (acc[a.location_unit] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const topUnit = Object.entries(unitCounts).sort((a, b) => b[1] - a[1])[0];
+  const topUnit = Object.entries(unitCounts).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
