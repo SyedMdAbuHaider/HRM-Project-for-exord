@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { useHRM } from '../store';
 import { UserRole, DutySchedule } from '../types';
 import { detectReplacementType } from './DutyReplacementView.hook';
