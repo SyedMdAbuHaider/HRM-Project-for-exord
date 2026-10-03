@@ -23,6 +23,17 @@ function category(mime='') {
   if(mime.startsWith('audio/')) return 'audio';
   return 'document';
 }
+async function readMultipart(req) {
+  const type=String(req.headers['content-type']||'');
+  const match=type.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  if(!match) throw Object.assign(new Error('multipart/form-data required'),{status:400});
+  const boundary=Buffer.from('--'+(match[1]||match[2]));
+  const chunks=[]; let total=0;
+  for await (const chunk of req) { total+=chunk.length; if(total>MAX+1024*1024) throw Object.assign(new Error('upload too large'),{status:413}); chunks.push(chunk); }
+  const buf=Buffer.concat(chunks); const parts=[]; let pos=0;
+  while((pos=buf.indexOf(boundary,pos))!==-1){ const start=pos+boundary.length; const next=buf.indexOf(boundary,start); if(next===-1) break; const raw=buf.slice(start,next); pos=next; const sep=raw.indexOf('\r\n\r\n'); if(sep<0) continue; const headers=raw.slice(2,sep).toString(); const body=raw.slice(sep+4,raw.length-2); const cd=headers.match(/Content-Disposition:[^\r\n]*name="([^"]+)"(?:; filename="([^"]*)")?/i); if(!cd) continue; parts.push({name:cd[1],filename:cd[2],headers,body}); }
+  return parts.find(p=>p.name==='file'&&p.filename) || null;
+}
 async function saveUpload(req,res,next,scope) {
   try {
     const file=req.file;
