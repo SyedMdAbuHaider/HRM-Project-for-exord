@@ -12,9 +12,9 @@ const LOGIN_LOCK_MINUTES=15;
 
 async function getEmployee(identifier){
   const {rows}=await db.query(
-    \`SELECT e.*,r.code AS role_code FROM employees e
+    `SELECT e.*,r.code AS role_code FROM employees e
      LEFT JOIN roles r ON r.id=e.role_id
-     WHERE lower(e.email)=$1 OR lower(e.employee_code)=$1 LIMIT 1\`,
+     WHERE lower(e.email)=$1 OR lower(e.employee_code)=$1 LIMIT 1`,
     [normalizeIdentifier(identifier)]
   );
   return rows[0]||null;
@@ -35,7 +35,7 @@ async function checkLoginRateLimit(identifier){
 
 async function recordFailedLogin(identifier){
   await db.query(
-    \`INSERT INTO login_attempts(identifier,count,locked_until,updated_at)
+    `INSERT INTO login_attempts(identifier,count,locked_until,updated_at)
      VALUES($1,1,CASE WHEN 1 >= $2 THEN now()+($3 || ' minutes')::interval ELSE NULL END,now())
      ON CONFLICT(identifier) DO UPDATE SET
        count=login_attempts.count+1,
@@ -43,7 +43,7 @@ async function recordFailedLogin(identifier){
          WHEN login_attempts.count+1 >= $2 THEN now()+($3 || ' minutes')::interval
          ELSE login_attempts.locked_until
        END,
-       updated_at=now()\`,
+       updated_at=now()`,
     [identifier,MAX_LOGIN_ATTEMPTS,LOGIN_LOCK_MINUTES]
   );
 }
@@ -58,8 +58,8 @@ async function issueSession(employee,req,client=db){
   const refreshToken=await createRefreshToken(employee.id,sessionId);
   const accessToken=await createAccessToken({...employee,permissions});
   await client.query(
-    \`INSERT INTO auth_sessions(id,employee_id,refresh_token_hash,user_agent,ip_address,expires_at)
-     VALUES($1,$2,$3,$4,$5,now()+interval '30 days')\`,
+    `INSERT INTO auth_sessions(id,employee_id,refresh_token_hash,user_agent,ip_address,expires_at)
+     VALUES($1,$2,$3,$4,$5,now()+interval '30 days')`,
     [sessionId,employee.id,hashRefreshToken(refreshToken),req.get('user-agent')||null,req.ip||null]
   );
   return {accessToken,refreshToken};
@@ -78,13 +78,13 @@ authRouter.post('/login',async(req,res,next)=>{
     }
     if(!(await argon2.verify(employee.password_hash,password))){
       await recordFailedLogin(identifier);
-      await db.query(\`INSERT INTO audit_logs(actor_id,action,category,severity,details)
-        VALUES($1,'AUTH_LOGIN_FAILED','AUTH','WARN',$2)\`,[employee.id,'Invalid login attempt']);
+      await db.query(`INSERT INTO audit_logs(actor_id,action,category,severity,details)
+        VALUES($1,'AUTH_LOGIN_FAILED','AUTH','WARN',$2)`,[employee.id,'Invalid login attempt']);
       return res.status(401).json({error:'Invalid credentials'});
     }
     await clearFailedLogins(identifier);
     const issued=await issueSession(employee,req);
-    await db.query(\`INSERT INTO audit_logs(actor_id,action,category,severity) VALUES($1,'AUTH_LOGIN','AUTH','INFO')\`,[employee.id]);
+    await db.query(`INSERT INTO audit_logs(actor_id,action,category,severity) VALUES($1,'AUTH_LOGIN','AUTH','INFO')`,[employee.id]);
     res.json({...issued,user:{
       id:employee.id,employeeCode:employee.employee_code,name:employee.full_name,email:employee.email,
       role:employee.role_code,departmentId:employee.department_id,unitId:employee.unit_id,
@@ -101,11 +101,11 @@ authRouter.post('/refresh',async(req,res,next)=>{
     const sessionId=String(payload.sid),employeeId=String(payload.sub);
     const result=await withTransaction(async(client)=>{
       const {rows}=await client.query(
-        \`SELECT e.*,r.code AS role_code,s.refresh_token_hash
+        `SELECT e.*,r.code AS role_code,s.refresh_token_hash
          FROM auth_sessions s JOIN employees e ON e.id=s.employee_id
          LEFT JOIN roles r ON r.id=e.role_id
          WHERE s.id=$1 AND s.employee_id=$2 AND s.refresh_token_hash=$3
-           AND s.revoked_at IS NULL AND s.expires_at>now() FOR UPDATE\`,
+           AND s.revoked_at IS NULL AND s.expires_at>now() FOR UPDATE`,
         [sessionId,employeeId,hashRefreshToken(refreshToken)]
       );
       const employee=rows[0];
