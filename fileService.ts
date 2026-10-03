@@ -4,8 +4,6 @@
  * Accessed through Nginx proxy at /upload/ and /files/
  */
 
-import { supabase } from './supabaseClient';
-
 const FILE_SERVER = ''; // Empty = same origin via Nginx proxy
 
 export interface UploadResult {
@@ -18,28 +16,16 @@ export interface UploadResult {
 }
 
 /**
- * Get auth token — reads from the active Supabase session (source of truth).
- * Falls back to the custom localStorage token only when no Supabase session
- * exists (e.g. custom-auth flows that don't use supabase.auth).
+ * Get the access token issued by the Exord HRM API.
  */
-const getToken = async (): Promise<string> => {
-  try {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) return data.session.access_token;
-  } catch { /* ignore */ }
-  // Fallback for custom-auth: read the token stored by the login function
+const getToken = (): string => {
   try { return localStorage.getItem('exord_auth_token') || ''; }
   catch { return ''; }
 };
 
-/**
- * Build headers with Authorization bearer token.
- * Async because Supabase session retrieval is async.
- */
-const authHeaders = async (): Promise<Record<string, string>> => {
-  const token = await getToken();
-  if (!token) return {};
-  return { 'Authorization': `Bearer ${token}` };
+const authHeaders = (): Record<string, string> => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 /**
@@ -51,7 +37,7 @@ export const uploadAvatar = async (file: File): Promise<UploadResult> => {
 
   const res = await fetch(`${FILE_SERVER}/upload/avatar`, {
     method: 'POST',
-    headers: await authHeaders(),
+    headers: authHeaders(),
     body: formData,
   });
 
@@ -76,7 +62,7 @@ export const uploadDocument = async (
 
   const res = await fetch(`${FILE_SERVER}/upload/document`, {
     method: 'POST',
-    headers: { ...(await authHeaders()), 'X-User-Id': userId },
+    headers: { ...authHeaders(), 'X-User-Id': userId },
     body: formData,
   });
 
@@ -101,7 +87,7 @@ export const uploadChatFile = async (
 
   const res = await fetch(`${FILE_SERVER}/upload/chat`, {
     method: 'POST',
-    headers: { ...(await authHeaders()), 'X-Conv-Id': convId },
+    headers: { ...authHeaders(), 'X-Conv-Id': convId },
     body: formData,
   });
 
