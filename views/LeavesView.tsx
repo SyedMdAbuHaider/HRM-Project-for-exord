@@ -8,6 +8,7 @@ import { LEAVE_TYPES } from '../constants';
 // ── Status badge config ────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<LeaveStatus, { color: string; bg: string; icon: React.ElementType }> = {
   [LeaveStatus.PENDING]:           { color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-900/20',   icon: Clock },
+  [LeaveStatus.UNIT_HEAD_APPROVED]: { color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-900/20', icon: Check },
   [LeaveStatus.MANAGER_APPROVED]:  { color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-900/20',     icon: Check },
   [LeaveStatus.HR_APPROVED]:       { color: 'text-indigo-600',  bg: 'bg-indigo-50 dark:bg-indigo-900/20', icon: Check },
   [LeaveStatus.CO_ADMIN_APPROVED]: { color: 'text-purple-600',  bg: 'bg-purple-50 dark:bg-purple-900/20', icon: Check },
