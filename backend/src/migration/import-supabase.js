@@ -1,0 +1,303 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import argon2 from 'argon2';
+import { pool, withTransaction } from '../db/pool.js';
+import { IMPORT_ORDER, TABLE_MAP } from './table-map.js';
+
+const args = new Set(process.argv.slice(2));
+const inputArg = process.argv.find((v) => v.startsWith('--input='));
+const INPUT_DIR = inputArg ? inputArg.slice('--input='.length) : process.env.SUPABASE_EXPORT_DIR;
+const DRY_RUN = args.has('--dry-run');
+const RESET_MAP = args.has('--reset-map');
+
+if (!INPUT_DIR) {
+  console.error('Usage: node src/migration/import-supabase.js --input=/path/to/export [--dry-run]');
+  process.exit(1);
+}
+
+const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+const pick = (row, ...keys) => keys.map((k) => row?.[k]).find((v) => v !== undefined && v !== null);
+const textOrNull = (v) => v === undefined || v === null || v === '' ? null : String(v);
+const numOr = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
+const boolOr = (v, fallback = false) => v === undefined || v === null ? fallback : Boolean(v);
+const jsonOr = (v, fallback = {}) => {
+  if (v === undefined || v === null || v === '') return fallback;
+  if (typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch { return fallback; }
+};
+const dateOrNull = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+async function filesFor(table) {
+  const candidates = [
+    path.join(INPUT_DIR, `${table}.json`),
+    path.join(INPUT_DIR, `${table}.jsonl`),
+  ];
+  for (const file of candidates) {
+    try {
+      const raw = await fs.readFile(file, 'utf8');
+      if (file.endsWith('.jsonl')) return raw.split(/\\r?\\n/).filter(Boolean).map((x) => JSON.parse(x));
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.data)) return parsed.data;
+      if (Array.isArray(parsed?.rows)) return parsed.rows;
+      return [];
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw new Error(`Cannot read ${file}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function mappedId(client, sourceTable, sourceId, create = true) {
+  if (sourceId === undefined || sourceId === null || sourceId === '') return null;
+  const key = String(sourceId);
+  const existing = await client.query(
+    'SELECT target_id FROM migration_id_map WHERE source_table=$1 AND source_id=$2',
+    [sourceTable, key],
+  );
+  if (existing.rowCount) return existing.rows[0].target_id;
+  if (!create) return null;
+  const targetId = isUuid(key) ? key : crypto.randomUUID();
+  await client.query(
+    'INSERT INTO migration_id_map(source_table,source_id,target_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
+    [sourceTable, key, targetId],
+  );
+  const check = await client.query(
+    'SELECT target_id FROM migration_id_map WHERE source_table=$1 AND source_id=$2',
+    [sourceTable, key],
+  );
+  return check.rows[0].target_id;
+}
+
+async function resolve(client, table, value) {
+  return mappedId(client, table, value, true);
+}
+
+async function ensureRole(client, code) {
+  const role = String(code || 'EMPLOYEE').toUpperCase();
+  const r = await client.query('SELECT id FROM roles WHERE code=$1', [role]);
+  if (r.rowCount) return r.rows[0].id;
+  const created = await client.query(
+    'INSERT INTO roles(code,name) VALUES($1,$2) RETURNING id',
+    [role, role.replaceAll('_', ' ')],
+  );
+  return created.rows[0].id;
+}
+
+async function importRoles(client) {
+  // Roles are seeded by migration; custom source roles are reconciled by code.
+  const rows = (await filesFor('roles')) || [];
+  for (const row of rows) await ensureRole(client, pick(row, 'code', 'role', 'name'));
+  return rows.length;
+}
+
+async function importUnits(client, rows) {
+  for (const r of rows) {
+    const id = await resolve(client, 'units', pick(r, 'id', 'unit_id'));
+    const name = textOrNull(pick(r, 'name', 'unit_name', 'title')) || `Imported Unit ${id.slice(0,8)}`;
+    await client.query(
+      `INSERT INTO units(id,name,address,latitude,longitude,radius_meters,allowed_ip_cidrs,unit_type,device_type,snmp_config)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,address=EXCLUDED.address,latitude=EXCLUDED.latitude,
+       longitude=EXCLUDED.longitude,radius_meters=EXCLUDED.radius_meters,allowed_ip_cidrs=EXCLUDED.allowed_ip_cidrs,
+       unit_type=EXCLUDED.unit_type,device_type=EXCLUDED.device_type,snmp_config=EXCLUDED.snmp_config,updated_at=now()`,
+      [id, name, textOrNull(pick(r,'address','location')),
+       numOr(pick(r,'lat','latitude'), null), numOr(pick(r,'lng','lon','longitude'), null),
+       numOr(pick(r,'radius','radius_meters','radiusMeters'), 150),
+       Array.isArray(pick(r,'allowed_ip_cidrs','allowedIpCidrs')) ? pick(r,'allowed_ip_cidrs','allowedIpCidrs') : [],
+       textOrNull(pick(r,'unit_type','unitType')), textOrNull(pick(r,'device_type','deviceType')),
+       jsonOr(pick(r,'snmp_config','snmpConfig'), null)]
+    );
+  }
+}
+
+async function importDepartments(client, rows) {
+  for (const r of rows) {
+    const id = await resolve(client, 'departments', pick(r, 'id', 'department_id'));
+    const primarySource = pick(r, 'unit_id','unitId');
+    const list = pick(r, 'unit_ids','unitIds');
+    const sourceUnits = Array.isArray(list) ? list : (primarySource ? [primarySource] : []);
+    const unitIds = (await Promise.all(sourceUnits.map((x) => resolve(client, 'units', x)))).filter(Boolean);
+    const primary = unitIds[0] || null;
+    const name = textOrNull(pick(r,'name','department_name','title')) || `Imported Department ${id.slice(0,8)}`;
+    await client.query(
+      `INSERT INTO departments(id,name,description,unit_id,unit_ids)
+       VALUES($1,$2,$3,$4,$5)
+       ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,
+       unit_id=EXCLUDED.unit_id,unit_ids=EXCLUDED.unit_ids,updated_at=now()`,
+      [id,name,textOrNull(pick(r,'description')),primary,unitIds]
+    );
+  }
+}
+
+function normalizePassword(value) {
+  if (!value) return null;
+  const s = String(value);
+  if (/^\\$argon2(id|i|d)\\$/.test(s) || /^\\$2[aby]\\$/.test(s) || /^pbkdf2[:$]/i.test(s)) return s;
+  return null;
+}
+
+async function passwordHash(row) {
+  const direct = pick(row,'password_hash','passwordHash');
+  const legacy = pick(row,'password');
+  const already = normalizePassword(direct || legacy);
+  if (already) return already;
+  if (legacy) return argon2.hash(String(legacy));
+  return null;
+}
+
+async function importUsers(client, rows) {
+  for (const r of rows) {
+    const id = await resolve(client,'users',pick(r,'id','user_id','employee_id'));
+    const roleId = await ensureRole(client,pick(r,'role','role_code','user_role'));
+    const departmentId = await resolve(client,'departments',pick(r,'department_id','departmentId'));
+    const unitId = await resolve(client,'units',pick(r,'unit_id','unitId'));
+    const password = await passwordHash(r);
+    await client.query(
+      `INSERT INTO employees(
+        id,employee_code,full_name,email,phone,password_hash,role_id,department_id,unit_id,designation,status,joining_date,
+        weekend_days,avatar_url,base_salary,device_id,father_name,mother_name,nid,present_address,permanent_address,
+        doc_deadline,must_change_password,gender,blood_group,dress_size,date_of_birth,phone_official,phone_personal,
+        phone_alternative,religion,marital_status,nationality,emergency_name,emergency_address,emergency_contact,
+        emergency_relation,bank_name,bank_account_number,bank_branch,bank_routing_number,festival_leave_1_choice,
+        festival_leave_2_choice,festival_worked_period,living_children,late_count,designation_track
+      ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48)
+      ON CONFLICT(id) DO UPDATE SET full_name=EXCLUDED.full_name,email=EXCLUDED.email,phone=EXCLUDED.phone,password_hash=COALESCE(EXCLUDED.password_hash,employees.password_hash),
+      role_id=EXCLUDED.role_id,department_id=EXCLUDED.department_id,unit_id=EXCLUDED.unit_id,designation=EXCLUDED.designation,status=EXCLUDED.status,
+      joining_date=EXCLUDED.joining_date,weekend_days=EXCLUDED.weekend_days,avatar_url=EXCLUDED.avatar_url,base_salary=EXCLUDED.base_salary,
+      device_id=EXCLUDED.device_id,father_name=EXCLUDED.father_name,mother_name=EXCLUDED.mother_name,nid=EXCLUDED.nid,present_address=EXCLUDED.present_address,
+      permanent_address=EXCLUDED.permanent_address,doc_deadline=EXCLUDED.doc_deadline,must_change_password=EXCLUDED.must_change_password,gender=EXCLUDED.gender,
+      blood_group=EXCLUDED.blood_group,dress_size=EXCLUDED.dress_size,date_of_birth=EXCLUDED.date_of_birth,phone_official=EXCLUDED.phone_official,
+      phone_personal=EXCLUDED.phone_personal,phone_alternative=EXCLUDED.phone_alternative,religion=EXCLUDED.religion,marital_status=EXCLUDED.marital_status,
+      nationality=EXCLUDED.nationality,emergency_name=EXCLUDED.emergency_name,emergency_address=EXCLUDED.emergency_address,emergency_contact=EXCLUDED.emergency_contact,
+      emergency_relation=EXCLUDED.emergency_relation,bank_name=EXCLUDED.bank_name,bank_account_number=EXCLUDED.bank_account_number,bank_branch=EXCLUDED.bank_branch,
+      bank_routing_number=EXCLUDED.bank_routing_number,festival_leave_1_choice=EXCLUDED.festival_leave_1_choice,festival_leave_2_choice=EXCLUDED.festival_leave_2_choice,
+      festival_worked_period=EXCLUDED.festival_worked_period,living_children=EXCLUDED.living_children,late_count=EXCLUDED.late_count,designation_track=EXCLUDED.designation_track,
+      updated_at=now()`,
+      [
+        id,textOrNull(pick(r,'employee_code','employeeCode','code')),
+        textOrNull(pick(r,'name','full_name','fullName')) || 'Imported Employee',
+        textOrNull(pick(r,'email')),textOrNull(pick(r,'phone','phone_personal','phonePersonal')),password,roleId,departmentId,unitId,
+        textOrNull(pick(r,'designation')),String(pick(r,'status','account_status') || 'ACTIVE').toUpperCase(),
+        pick(r,'join_date','joining_date','joinDate') ? String(pick(r,'join_date','joining_date','joinDate')).slice(0,10) : null,
+        Array.isArray(pick(r,'weekend_days','weekendDays')) ? pick(r,'weekend_days','weekendDays') : ['Friday','Saturday'],
+        textOrNull(pick(r,'avatar','avatar_url','avatarUrl')),numOr(pick(r,'base_salary','baseSalary'),0),textOrNull(pick(r,'device_id','deviceId')),
+        textOrNull(pick(r,'father_name','fatherName')),textOrNull(pick(r,'mother_name','motherName')),textOrNull(pick(r,'nid')),
+        textOrNull(pick(r,'present_address','presentAddress')),textOrNull(pick(r,'permanent_address','permanentAddress')),
+        dateOrNull(pick(r,'doc_deadline','docDeadline')),boolOr(pick(r,'must_change_password','mustChangePassword'),false),
+        textOrNull(pick(r,'gender')),textOrNull(pick(r,'blood_group','bloodGroup')),textOrNull(pick(r,'dress_size','dressSize')),
+        pick(r,'date_of_birth','dateOfBirth') ? String(pick(r,'date_of_birth','dateOfBirth')).slice(0,10) : null,
+        textOrNull(pick(r,'phone_official','phoneOfficial')),textOrNull(pick(r,'phone_personal','phonePersonal')),textOrNull(pick(r,'phone_alternative','phoneAlternative')),
+        textOrNull(pick(r,'religion')),textOrNull(pick(r,'marital_status','maritalStatus')),textOrNull(pick(r,'nationality')),
+        textOrNull(pick(r,'emergency_name','emergencyName')),textOrNull(pick(r,'emergency_address','emergencyAddress')),textOrNull(pick(r,'emergency_contact','emergencyContact')),
+        textOrNull(pick(r,'emergency_relation','emergencyRelation')),textOrNull(pick(r,'bank_name','bankName')),textOrNull(pick(r,'bank_account_number','bankAccountNumber')),
+        textOrNull(pick(r,'bank_branch','bankBranch')),textOrNull(pick(r,'bank_routing_number','bankRoutingNumber')),
+        textOrNull(pick(r,'festival_leave_1_choice','festivalLeave1Choice')),textOrNull(pick(r,'festival_leave_2_choice','festivalLeave2Choice')),
+        pick(r,'festival_worked_period','festivalWorkedPeriod') == null ? null : Number(pick(r,'festival_worked_period','festivalWorkedPeriod')),
+        pick(r,'living_children','livingChildren') == null ? null : Number(pick(r,'living_children','livingChildren')),
+        numOr(pick(r,'late_count','lateCount'),0),textOrNull(pick(r,'designation_track','designationTrack'))
+      ]
+    );
+  }
+}
+
+async function insertGeneric(client, target, row, sourceTable) {
+  const id = await resolve(client, sourceTable, pick(row,'id'));
+  const common = {
+    attendance: ['employee_id','type','status','occurred_at','location','ip_address','device_id','app_version','source','is_late','late_minutes','reason','client_event_id','synced_at'],
+  };
+  if (target === 'attendance') {
+    const employeeId=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    await client.query(`INSERT INTO attendance(id,employee_id,type,status,occurred_at,location,ip_address,device_id,app_version,source,is_late,late_minutes,reason,client_event_id,synced_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT(id) DO NOTHING`,
+      [id,employeeId,String(pick(row,'type','attendance_type')||'CHECK_IN').toUpperCase(),String(pick(row,'status')||'SUCCESS').toUpperCase(),
+       dateOrNull(pick(row,'timestamp','occurred_at','created_at'))||new Date().toISOString(),jsonOr(pick(row,'location'),null),textOrNull(pick(row,'ip_address','ipAddress')),
+       textOrNull(pick(row,'device_id','deviceId')),textOrNull(pick(row,'app_version','appVersion')),textOrNull(pick(row,'source'))||'migration',
+       boolOr(pick(row,'is_late','isLate'),false),numOr(pick(row,'late_minutes','lateMinutes'),0),textOrNull(pick(row,'reason')),
+       isUuid(pick(row,'client_event_id','clientEventId'))?pick(row,'client_event_id','clientEventId'):null,dateOrNull(pick(row,'synced_at'))]); return;
+  }
+  if (target === 'leave_requests') {
+    const employeeId=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    await client.query(`INSERT INTO leave_requests(id,employee_id,leave_type,start_date,end_date,reason,status,current_approver_role,rejection_reason,created_at,updated_at,metadata)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO NOTHING`,
+      [id,employeeId,textOrNull(pick(row,'leave_type','leaveType','type'))||'OTHER',
+       String(pick(row,'start_date','startDate')||pick(row,'from_date')||'').slice(0,10),String(pick(row,'end_date','endDate')||pick(row,'to_date')||'').slice(0,10),
+       textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),textOrNull(pick(row,'current_approver_role','currentApproverRole')),
+       textOrNull(pick(row,'rejection_reason','rejectionReason')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),
+       dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString(),jsonOr(pick(row,'metadata'),{})]); return;
+  }
+  if (target === 'loan_requests') {
+    const employeeId=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    const reviewedBy=await resolve(client,'users',pick(row,'reviewed_by','reviewedBy'));
+    await client.query(`INSERT INTO loan_requests(id,employee_id,type,amount,reason,status,total_months,paid_months,amount_paid,start_month,reviewed_by,reviewed_at,review_note,created_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(id) DO NOTHING`,
+      [id,employeeId,String(pick(row,'type')||'LOAN').toUpperCase(),numOr(pick(row,'amount'),0),textOrNull(pick(row,'reason')),
+       String(pick(row,'status')||'PENDING').toUpperCase(),pick(row,'total_months','totalMonths')??null,numOr(pick(row,'paid_months','paidMonths'),0),
+       numOr(pick(row,'amount_paid','amountPaid'),0),textOrNull(pick(row,'start_month','startMonth')),reviewedBy,dateOrNull(pick(row,'reviewed_at','reviewedAt')),
+       textOrNull(pick(row,'review_note','reviewNote')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'notifications') {
+    const recipient=await resolve(client,'users',pick(row,'user_id','userId','recipient_id','recipientId'));
+    await client.query(`INSERT INTO notifications(id,recipient_id,title,message,type,metadata,read_at,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
+      [id,recipient,textOrNull(pick(row,'title'))||'',textOrNull(pick(row,'message','body'))||'',textOrNull(pick(row,'type'))||'SYSTEM',jsonOr(pick(row,'metadata'),{}),
+       dateOrNull(pick(row,'read_at','readAt')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
+  }
+  if (target === 'audit_logs') {
+    const actor=await resolve(client,'users',pick(row,'user_id','userId','actor_id','actorId'));
+    await client.query(`INSERT INTO audit_logs(id,actor_id,action,category,severity,details,metadata,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
+      [id,actor,textOrNull(pick(row,'action','event','type'))||'MIGRATED',textOrNull(pick(row,'category'))||'LEGACY',
+       textOrNull(pick(row,'severity'))||'INFO',textOrNull(pick(row,'details','description','message')),jsonOr(pick(row,'metadata'),{}),
+       dateOrNull(pick(row,'created_at','createdAt','timestamp'))||new Date().toISOString()]); return;
+  }
+  if (target === 'gps_logs') {
+    const employee=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    await client.query(`INSERT INTO gps_logs(id,employee_id,latitude,longitude,accuracy_meters,recorded_at,source) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING`,
+      [id,employee,numOr(pick(row,'lat','latitude'),0),numOr(pick(row,'lng','longitude'),0),numOr(pick(row,'accuracy','accuracy_meters'),null),
+       dateOrNull(pick(row,'timestamp','recorded_at','created_at'))||new Date().toISOString(),textOrNull(pick(row,'source'))||'migration']); return;
+  }
+  // For small configuration tables, build a deterministic insert from known target columns.
+  const specs = {
+    login_attempts: [['identifier','identifier'],['count','count'],['locked_until','locked_until'],['updated_at','updated_at']],
+    pay_scales: [['id','id'],['role_code','role_code'],['level','level'],['name','name'],['min_salary','min_salary'],['max_salary','max_salary'],['created_at','created_at']],
+    leave_policies: [['id','id'],['name','name'],['leave_type','leave_type'],['min_service_years','min_service_years'],['max_service_years','max_service_years'],['days_allowed','days_allowed'],['created_at','created_at'],['updated_at','updated_at']],
+    holidays: [['id','id'],['holiday_date','holiday_date'],['name','name'],['type','type'],['applicable_to','applicable_to'],['extra_pay_multiplier','extra_pay_multiplier'],['note','note'],['created_at','created_at']],
+    system_settings: [['key','key'],['value','value'],['description','description'],['updated_by','updated_by'],['updated_at','updated_at']],
+  };
+  const spec=specs[target];
+  if(!spec) { console.warn(`Skipping unsupported target ${target}`); return; }
+  const cols=[], vals=[];
+  for(const [col,source] of spec){ let v=pick(row,source); if(col==='id') v=id; if(col==='updated_by') v=await resolve(client,'users',v); if(col==='value') v=jsonOr(v,{}); if(['created_at','updated_at','locked_until'].includes(col)) v=dateOrNull(v); cols.push(col); vals.push(v); }
+  const placeholders=vals.map((_,i)=>'$'+(i+1)).join(',');
+  await client.query(`INSERT INTO ${target}(${cols.join(',')}) VALUES(${placeholders}) ON CONFLICT DO NOTHING`,vals);
+}
+
+async function main() {
+  const client = await pool.connect();
+  try {
+    if (RESET_MAP && !DRY_RUN) await client.query('TRUNCATE migration_id_map');
+    const report=[];
+    for (const sourceTable of IMPORT_ORDER) {
+      const rows=await filesFor(sourceTable);
+      if (rows === null) continue;
+      const target=sourceTable==='roles' ? 'roles' : TABLE_MAP[sourceTable];
+      if (!target) continue;
+      if (DRY_RUN) { report.push({sourceTable,target,count:rows.length}); continue; }
+      await withTransaction(async (tx) => {
+        if(sourceTable==='roles') await importRoles(tx);
+        else if(sourceTable==='units') await importUnits(tx,rows);
+        else if(sourceTable==='departments') await importDepartments(tx,rows);
+        else if(sourceTable==='users') await importUsers(tx,rows);
+        else for(const row of rows) await insertGeneric(tx,target,row,sourceTable);
+      });
+      report.push({sourceTable,target,count:rows.length});
+    }
+    console.table(report);
+    console.log(DRY_RUN ? 'Dry run complete. No data was written.' : 'Supabase import complete.');
+  } finally { client.release(); await pool.end(); }
+}
+main().catch((err)=>{ console.error(err); process.exit(1); });
