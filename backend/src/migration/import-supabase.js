@@ -377,8 +377,21 @@ async function insertGeneric(client, target, row, sourceTable) {
       [id,department,employee,dateOrNull(pick(row,'starts_at','startsAt'))||new Date().toISOString(),dateOrNull(pick(row,'ends_at','endsAt')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'unit_approvers') {
-    const unit=await resolve(client,'units',pick(row,'unit_id','unitId'));
-    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const unitSource=pick(row,'unit_id','unitId');
+    const unit=unitSource ? await mappedId(client,'units',unitSource,false) : null;
+    const employeeSource=pick(row,'employee_id','user_id','userId');
+    const employee=employeeSource ? await mappedId(client,'users',employeeSource,false) : null;
+    if (!unit || !employee) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: !unit && !employee
+          ? 'Skipped unit approver because unit and employee references could not be resolved'
+          : !unit
+            ? 'Skipped unit approver because unit reference could not be resolved'
+            : 'Skipped unit approver because employee reference could not be resolved',
+      });
+      return;
+    }
     await client.query(`INSERT INTO unit_approvers(unit_id,employee_id,role_code) VALUES($1,$2,$3) ON CONFLICT(unit_id,employee_id,role_code) DO NOTHING`,
       [unit,employee,String(pick(row,'role_code','roleCode','role')||'MANAGER').toUpperCase()]); return;
   }
