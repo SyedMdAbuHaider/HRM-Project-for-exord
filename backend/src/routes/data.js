@@ -26,7 +26,7 @@ const legacySelect = (t, fields) => {
     if(fields==='*') return '*';
     return fields.split(',').map(x=>x.trim()).filter(Boolean).map(k=>maps[t][k]?maps[t][k]+' AS "'+k+'"':qi(k)).join(',');
   }
-  if(t==='role_capabilities' && (fields==='role, capabilities' || fields==='role,capabilities')) return 'role_code AS role, jsonb_agg(capability) AS capabilities FROM role_capabilities GROUP BY role_code';
+  if(t==='role_capabilities' && (fields==='role, capabilities' || fields==='role,capabilities')) return 'role_code AS role, jsonb_agg(capability) AS capabilities';
   if(t==='custom_roles' && fields==='id, name, color') return 'id,name,COALESCE(description,\'\') AS color';
   return fields;
 };
@@ -39,7 +39,7 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
    const vals=[],where=[]; const fields=legacySelect(t,String(req.query.select||'*'));
    for(const [k,v] of Object.entries(req.query)){const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);if(!m)continue;const op=m[1],col=m[2];const mapped=t==='users'?(col==='id'?'e.id':col==='email'?'e.email':qi(col)):qi(col);if(op==='in'){where.push(mapped+'=ANY($'+(vals.length+1)+')');vals.push(String(v).split(','));}else if(op==='is'&&String(v)==='null')where.push(mapped+' IS NULL');else{where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1));vals.push(v);}}
    if(t==='notifications'){where.push('recipient_id=$'+(vals.length+1));vals.push(req.auth.employeeId);} if(!ADMIN_ROLES.has(req.auth.role)&&t==='attendance'){where.push('employee_id=$'+(vals.length+1));vals.push(req.auth.employeeId);} if(!ADMIN_ROLES.has(req.auth.role)&&t==='gps_logs'){where.push('employee_id=$'+(vals.length+1));vals.push(req.auth.employeeId);}
-   let sql='SELECT '+fields+' FROM '+(t==='users'?'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id':qi(actual)); if(where.length)sql+=' WHERE '+where.join(' AND ');
+   let sql='SELECT '+fields+' FROM '+(t==='users'?'employees e LEFT JOIN roles r ON r.id=e.role_id LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN units u ON u.id=e.unit_id':qi(actual)); if(where.length)sql+=' WHERE '+where.join(' AND '); if(t==='role_capabilities' && (String(req.query.select||'')==='role, capabilities'||String(req.query.select||'')==='role,capabilities')) sql+=' GROUP BY role_code';
    if(req.query.order){const p=String(req.query.order).split('.');sql+=' ORDER BY '+(t==='users'&&p[0]==='name'?'e.full_name':qi(p[0]))+' '+(p[1]==='desc'?'DESC':'ASC');} sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000); const out=await db.query(sql,vals); return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
   }
   const id=req.query.id; if(req.method==='DELETE'){if(!id)throw Object.assign(new Error('id is required'),{status:400});const out=await db.query('DELETE FROM '+qi(actual)+' WHERE id=$1 RETURNING *',[id]);return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});}
