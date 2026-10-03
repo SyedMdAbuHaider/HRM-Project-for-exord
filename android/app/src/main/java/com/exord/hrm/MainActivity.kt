@@ -1,7 +1,7 @@
 package com.exord.hrm
 
+import android.app.Application
 import android.os.Bundle
-import android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.ui.HrmViewModel
 
@@ -28,7 +28,9 @@ private val Card=Color(0xFFF8FAFC)
 
 class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b);setContent{ExordApp()}} }
 
-@Composable fun ExordApp(vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(application))){
+@Composable fun ExordApp(){
+ val app=LocalContext.current.applicationContext as Application
+ val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=lightColorScheme(primary=Red)){Surface(Modifier.fillMaxSize()){if(s.loggedIn)Shell(vm,s.name,s.role)else Login(vm,s.loading,s.error)}}
 }
