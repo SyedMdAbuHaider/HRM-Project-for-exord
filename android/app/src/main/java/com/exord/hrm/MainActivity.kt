@@ -48,7 +48,7 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String){
  var tab by remember{mutableStateOf(0)};val items=nav(role)
  Scaffold(bottomBar={NavigationBar(containerColor=Color.White){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
-  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,p);"Chat"->Simple("Chat","Direct, department and custom conversations with messages and attachments.",p);"Pay"->Payroll(vm,p);"More"->More(role,p);"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
+  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p);"Requests"->Requests(vm,p);"Chat"->Simple("Chat","Direct, department and custom conversations with messages and attachments.",p);"Pay"->Payroll(vm,p);"More"->More(role,p){ pp-> Notifications(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
 @Composable private fun Dashboard(vm:HrmViewModel,name:String,role:String,p:PaddingValues){
@@ -76,6 +76,27 @@ private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal"
  val salaries by vm.salaries.collectAsState();LaunchedEffect(Unit){vm.loadSalaries()}
  Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.status?:s.period_status?:"",color=Muted,fontSize=12.sp)}}}}}
 }
-@Composable private fun More(role:String,p:PaddingValues){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){Text(f,Modifier.padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}
+@Composable private fun More(role:String,p:PaddingValues,onNotifications:(PaddingValues)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){Text(f,Modifier.padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}
+@Composable private fun Notifications(vm:HrmViewModel,p:PaddingValues){
+ val ns by vm.notifications.collectAsState()
+ LaunchedEffect(Unit){vm.loadNotifications()}
+ Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){
+  Text("Notifications",color=Red,fontWeight=FontWeight.Bold)
+  Text("Inbox",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink)
+  Spacer(Modifier.height(12.dp))
+  LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   items(ns,key={it.id}){n->
+    Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),colors=CardDefaults.cardColors(containerColor=Card)){
+     Column(Modifier.padding(16.dp)){
+      Text(n.title?: "Notification",fontWeight=FontWeight.Bold)
+      Text(n.message?:n.body.orEmpty(),color=Muted)
+      n.created_at?.let{Text(it,color=Muted,fontSize=11.sp)}
+      if(n.read_at==null) TextButton({vm.markNotificationRead(n.id)}){Text("Mark read",color=Red)}
+     }
+    }
+   }
+  }
+ }
+}
 @Composable private fun Simple(title:String,desc:String,p:PaddingValues){Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text(title,color=Red,fontWeight=FontWeight.Bold);Text(title,fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));BoxCard(title){Text(desc,color=Muted)}}}
 @Composable private fun BoxCard(title:String,content:@Composable ColumnScope.()->Unit){Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(18.dp)){Text(title.uppercase(),color=Red,fontSize=11.sp,fontWeight=FontWeight.Black,letterSpacing=1.sp);Spacer(Modifier.height(7.dp));content()}}}
