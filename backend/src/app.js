@@ -40,5 +40,9 @@ app.use('/api/v1/employees', employeesRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('[api]', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    ...(err.code ? { code: err.code } : {}),
+    ...(err.details ? { details: err.details } : {})
+  });
 });
