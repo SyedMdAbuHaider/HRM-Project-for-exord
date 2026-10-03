@@ -77,7 +77,7 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
   const body=bodies[0]; const bodyVals=keys.map(k=>body[k]);
   if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
   const offset=bodyVals.length;
-  const shiftedWhere=where.map(w=>w.replace(/\\$(\\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+  const shiftedWhere=where.map(w=>w.replace(/\$(\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
   const out=await db.query('UPDATE '+qi(actual)+' SET '+keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+' WHERE '+shiftedWhere.join(' AND ')+' RETURNING *',[...bodyVals,...filterVals]);
   return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
  }catch(e){next(e);} });
