@@ -4,7 +4,7 @@
  * Accessed through Nginx proxy at /upload/ and /files/
  */
 
-const FILE_SERVER = ''; // Empty = same origin via Nginx proxy
+const FILE_SERVER = (import.meta.env.VITE_HRM_API_URL || '').replace(/\/$/,'');
 
 export interface UploadResult {
   url: string;
@@ -35,7 +35,7 @@ export const uploadAvatar = async (file: File): Promise<UploadResult> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${FILE_SERVER}/upload/avatar`, {
+  const res = await fetch(`${FILE_SERVER}/api/v1/files/upload/avatar`, {
     method: 'POST',
     headers: authHeaders(),
     body: formData,
@@ -60,7 +60,7 @@ export const uploadDocument = async (
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${FILE_SERVER}/upload/document`, {
+  const res = await fetch(`${FILE_SERVER}/api/v1/files/upload/document`, {
     method: 'POST',
     headers: { ...authHeaders(), 'X-User-Id': userId },
     body: formData,
@@ -85,7 +85,7 @@ export const uploadChatFile = async (
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(`${FILE_SERVER}/upload/chat`, {
+  const res = await fetch(`${FILE_SERVER}/api/v1/files/upload/chat`, {
     method: 'POST',
     headers: { ...authHeaders(), 'X-Conv-Id': convId },
     body: formData,
