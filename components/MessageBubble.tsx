@@ -433,7 +433,7 @@ const MessageBubble: React.FC<Props> = ({
                 className={`flex flex-wrap gap-1 mt-2 -mx-1 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 {Object.entries(reactions).map(([emoji, count]) =>
-                  count > 0 ? (
+                  Number(count) > 0 ? (
                     <button
                       key={emoji}
                       onClick={() => handleReact(emoji)}
@@ -449,7 +449,7 @@ const MessageBubble: React.FC<Props> = ({
                         }`}
                     >
                       <span style={{ fontSize: 13, lineHeight: 1 }}>{emoji}</span>
-                      {count > 1 && <span className="ml-0.5 tabular-nums">{count}</span>}
+                      {Number(count) > 1 && <span className="ml-0.5 tabular-nums">{count}</span>}
                     </button>
                   ) : null
                 )}
