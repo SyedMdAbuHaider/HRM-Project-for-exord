@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useHRM } from '../store';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { UserRole } from '../types';
 import { formatCurrency } from '../utils';
 import { EMPLOYEE_DESIGNATIONS, TECHNICIAN_DESIGNATIONS } from '../constants';
