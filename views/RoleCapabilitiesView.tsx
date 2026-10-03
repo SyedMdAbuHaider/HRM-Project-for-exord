@@ -481,11 +481,11 @@ const RoleCapabilitiesView: React.FC = () => {
                     {category}
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold ml-auto">
-                    {caps.filter(c => selectedCaps.includes(c.key)).length}/{caps.length}
+                    {(caps as any[]).filter((c:any) => selectedCaps.includes(c.key)).length}/{caps.length}
                   </span>
                 </div>
                 <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {caps.map(cap => {
+                  {(caps as any[]).map((cap:any) => {
                     const enabled = selectedCaps.includes(cap.key);
                     const Icon = cap.icon;
                     const isCustom = customCaps.some(c => c.key === cap.key);
