@@ -8,13 +8,13 @@ import okhttp3.MediaType.Companion.toMediaType
 
 class AuthInterceptor(private val tokenProvider:()->String):Interceptor{
  override fun intercept(chain:Interceptor.Chain):okhttp3.Response{
-  val token=tokenProvider(); val req=chain.request().newBuilder()
-  if(token.isNotBlank()) req.header("Authorization","Bearer $token")
+  val req=chain.request().newBuilder()
+  tokenProvider().takeIf{it.isNotBlank()}?.let{req.header("Authorization","Bearer $it")}
   return chain.proceed(req.build())
  }
 }
-object ApiFactory {
- val BASE_URL: String get() = BuildConfig.HRM_API_URL
+object ApiFactory{
+ val BASE_URL:String get()=BuildConfig.HRM_API_URL
  fun create(tokenProvider:()->String):HrmApi{
   val json=Json{ignoreUnknownKeys=true}
   val client=OkHttpClient.Builder().addInterceptor(AuthInterceptor(tokenProvider)).build()
