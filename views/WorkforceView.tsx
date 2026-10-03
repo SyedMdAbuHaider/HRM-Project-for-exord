@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 import { useHRM } from '../store';
 import { User, UserRole, WeekDay, ALL_WEEK_DAYS, LeaveStatus, isWeekendForUser } from '../types';
 import {
