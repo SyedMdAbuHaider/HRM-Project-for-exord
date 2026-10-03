@@ -66,3 +66,18 @@ async function saveUpload(req,res,next,scope) {
 filesRouter.post('/upload/avatar',requireAuth,async(req,res,next)=>saveUpload(req,res,next,'avatar'));
 filesRouter.post('/upload/document',requireAuth,async(req,res,next)=>saveUpload(req,res,next,'document'));
 filesRouter.post('/upload/chat',requireAuth,async(req,res,next)=>saveUpload(req,res,next,'chat'));
+filesRouter.get('/download/:id',requireAuth,async(req,res,next)=>{
+  try {
+    const q=await db.query('SELECT * FROM stored_files WHERE id=$1 AND deleted_at IS NULL',[req.params.id]);
+    const row=q.rows[0]; if(!row) return res.status(404).json({error:'File not found'});
+    if(row.owner_id!==req.auth.employeeId){
+      if(row.conversation_id){
+        const m=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',[row.conversation_id,req.auth.employeeId]);
+        if(!m.rowCount) return res.status(403).json({error:'Permission denied'});
+      } else if(!['DEVELOPER','ADMIN','CO_ADMIN','HR','MANAGER'].includes(req.auth.role)) return res.status(403).json({error:'Permission denied'});
+    }
+    const root=path.resolve(ROOT), full=path.resolve(ROOT,row.storage_key);
+    if(full!==root && !full.startsWith(root+path.sep)) return res.status(400).json({error:'Invalid storage key'});
+    res.type(row.mime_type); res.setHeader('Content-Disposition', 'inline; filename="'+String(row.original_name).replace(/["\r\n]/g,'_')+'"'); res.sendFile(full);
+  } catch(e){next(e);}
+});
