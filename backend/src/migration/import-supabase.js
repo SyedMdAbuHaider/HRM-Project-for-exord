@@ -114,6 +114,12 @@ async function resolveEmployeeReference(client, value) {
   return byName.rowCount ? byName.rows[0].id : null;
 }
 
+
+const stableUuid = (seed) => {
+  const hex = crypto.createHash('sha256').update(String(seed)).digest('hex').slice(0, 32);
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-5${hex.slice(13,16)}-8${hex.slice(17,20)}-${hex.slice(20,32)}`;
+};
+
 async function ensureRole(client, code) {
   const role = String(code || 'EMPLOYEE').toUpperCase();
   const r = await client.query('SELECT id FROM roles WHERE code=$1', [role]);
@@ -334,7 +340,7 @@ async function insertGeneric(client, target, row, sourceTable) {
       : null;
 
     const employee=employeeSource
-      ? await mappedId(client,'users',employeeSource,false)
+      ? await resolveEmployeeReference(client,employeeSource)
       : null;
 
     if (!conversation || !employee) {
@@ -420,11 +426,18 @@ async function insertGeneric(client, target, row, sourceTable) {
       const departmentName=pick(row,'department','department_name','departmentName');
       if (departmentName) {
         const normalized=String(departmentName).trim().toLowerCase();
+        const compact=(value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/engineering/g,'').replace(/department|dept/g,'');
         const dr=await client.query(
-          "SELECT id FROM departments WHERE lower(trim(name)) = $1 LIMIT 1",
+          "SELECT id,name FROM departments WHERE lower(trim(name)) = $1 LIMIT 1",
           [normalized],
         );
-        department=dr.rowCount ? dr.rows[0].id : null;
+        if (dr.rowCount) department=dr.rows[0].id;
+        else {
+          const candidates=await client.query('SELECT id,name FROM departments');
+          const wanted=compact(departmentName);
+          const match=candidates.rows.find((candidate) => compact(candidate.name) === wanted);
+          department=match ? match.id : null;
+        }
       }
     }
     const employeeSource=pick(row,'employee_id','user_id','userId','delegate_user_id','delegateUserId');
@@ -498,26 +511,37 @@ async function insertGeneric(client, target, row, sourceTable) {
       [employee,String(pick(row,'capability','permission','feature')||''),boolOr(pick(row,'granted'),true)]); return;
   }
   if (target === 'profile_change_requests') {
-    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
-
-    const reviewerSource=pick(row,'reviewed_by','reviewedBy');
-    const reviewer=reviewerSource
-      ? await mappedId(client,'users',reviewerSource,false)
-      : null;
-
-    if (reviewerSource && !reviewer) {
+    const employeeSource=pick(row,'employee_id','user_id','userId');
+    const employee=employeeSource ? await resolveEmployeeReference(client,employeeSource) : null;
+    if (!employee) {
       await archiveLegacyRow(client, sourceTable, {
         ...row,
-        _migration_reason: 'Skipped profile change request because reviewed_by employee reference could not be resolved',
+        _migration_reason: 'Skipped profile change request because employee reference could not be resolved',
       });
       return;
     }
 
-    await client.query(`INSERT INTO profile_change_requests(id,employee_id,field_name,old_value,new_value,reason,status,reviewed_by,review_note,created_at,reviewed_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO NOTHING`,
-      [id,employee,textOrNull(pick(row,'field_name','fieldName'))||'',textOrNull(pick(row,'old_value','oldValue')),textOrNull(pick(row,'new_value','newValue')),
-       textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),reviewer,textOrNull(pick(row,'review_note','reviewNote')),
-       dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'reviewed_at','reviewedAt'))]); return;
+    const reviewerSource=pick(row,'reviewed_by','reviewedBy');
+    const reviewer=reviewerSource ? await resolveEmployeeReference(client,reviewerSource) : null;
+    const fieldChanges=pick(row,'field_changes','fieldChanges');
+    const entries=fieldChanges && typeof fieldChanges === 'object' && !Array.isArray(fieldChanges)
+      ? Object.entries(fieldChanges)
+      : [[pick(row,'field_name','fieldName') || 'Legacy Change', {
+          old: pick(row,'old_value','oldValue'),
+          new: pick(row,'new_value','newValue'),
+        }]];
+
+    for (const [fieldName, change] of entries) {
+      const value=change && typeof change === 'object' ? change : { new: change, old: null };
+      const requestSourceId=String(pick(row,'id') ?? crypto.randomUUID());
+      const fieldId=stableUuid(`profile_change_requests:${requestSourceId}:${fieldName}`);
+      await client.query(`INSERT INTO profile_change_requests(id,employee_id,field_name,old_value,new_value,reason,status,reviewed_by,review_note,created_at,reviewed_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO UPDATE SET employee_id=EXCLUDED.employee_id,field_name=EXCLUDED.field_name,old_value=EXCLUDED.old_value,new_value=EXCLUDED.new_value,reason=EXCLUDED.reason,status=EXCLUDED.status,reviewed_by=EXCLUDED.reviewed_by,review_note=EXCLUDED.review_note,created_at=EXCLUDED.created_at,reviewed_at=EXCLUDED.reviewed_at`,
+        [fieldId,employee,textOrNull(fieldName) || 'Legacy Change',textOrNull(value.old),textOrNull(value.new),
+         textOrNull(pick(row,'reason')),String(pick(row,'status')||'PENDING').toUpperCase(),reviewer,textOrNull(pick(row,'review_note','reviewNote')),
+         dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'reviewed_at','reviewedAt'))]);
+    }
+    return;
   }
   if (target === 'message_reads') {
     const message=await resolve(client,'messages',pick(row,'message_id','messageId'));
