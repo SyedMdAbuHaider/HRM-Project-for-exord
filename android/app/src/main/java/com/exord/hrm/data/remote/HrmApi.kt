@@ -28,8 +28,10 @@ import com.exord.hrm.data.model.ChatMessage
 @Serializable data class MessageCreateRequest(val conversation_id:String,val content:String?=null)
 
 @Serializable data class LeaveCreateRequest(val leaveType:String,val startDate:String,val endDate:String,val reason:String?=null)
+@Serializable data class PasswordChangeRequest(val currentPassword:String,val newPassword:String)
 interface HrmApi {
  @GET("api/v1/me") suspend fun me(): MeResponse
+ @POST("api/v1/me/password") suspend fun changePassword(@Body body:PasswordChangeRequest)
  @POST("api/v1/auth/login") suspend fun login(@Body request:LoginRequest): LoginResponse
  @POST("api/v1/auth/refresh") suspend fun refresh(@Body request:RefreshRequest): RefreshResponse
  @POST("api/v1/auth/logout") suspend fun logout(@Body request:RefreshRequest)
