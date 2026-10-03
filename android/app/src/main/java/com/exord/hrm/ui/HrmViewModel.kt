@@ -31,6 +31,7 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  private val _salaries=MutableStateFlow<List<SalaryRecord>>(emptyList());val salaries=_salaries.asStateFlow()
  private val _conversations=MutableStateFlow<List<Conversation>>(emptyList());val conversations=_conversations.asStateFlow()
  private val _messages=MutableStateFlow<List<ChatMessage>>(emptyList());val messages=_messages.asStateFlow()
+ private val _selectedConversationId=MutableStateFlow<String?>(null);val selectedConversationId=_selectedConversationId.asStateFlow()
  private val _notifications=MutableStateFlow<List<NotificationRecord>>(emptyList());val notifications=_notifications.asStateFlow()
  private val _profile=MutableStateFlow<Employee?>(null);val profile=_profile.asStateFlow()
 
@@ -54,12 +55,13 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
     val ids=memberships.map{it.conversation_id}
     if(ids.isEmpty()){_conversations.value=emptyList();_messages.value=emptyList();return@launch}
     _conversations.value=api.conversations(mapOf("in[id]" to ids.joinToString(","),"limit" to "100")).data
-    val selected=_conversations.value.firstOrNull()?.id
+    val selected=_selectedConversationId.value?.takeIf{sid->_conversations.value.any{it.id==sid}}?:_conversations.value.firstOrNull()?.id
+    _selectedConversationId.value=selected
     if(selected!=null)_messages.value=api.messages(mapOf("eq[conversation_id]" to selected,"order" to "created_at.asc","limit" to "100")).data
    }catch(_:Exception){}
   }
  }
- fun selectConversation(id:String){viewModelScope.launch{try{_messages.value=api.messages(mapOf("eq[conversation_id]" to id,"order" to "created_at.asc","limit" to "100")).data}catch(_:Exception){}}}
+ fun selectConversation(id:String){_selectedConversationId.value=id;viewModelScope.launch{try{_messages.value=api.messages(mapOf("eq[conversation_id]" to id,"order" to "created_at.asc","limit" to "100")).data}catch(_:Exception){}}}
  fun sendChatMessage(conversationId:String,content:String){viewModelScope.launch{try{api.sendMessage(MessageCreateRequest(conversation_id=conversationId,content=content.ifBlank{null}));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "Message failed")}}}
  fun sendChatFile(conversationId:String,filename:String,mime:String,bytes:ByteArray){viewModelScope.launch{try{val body=bytes.toRequestBody(mime.toMediaTypeOrNull());val part=MultipartBody.Part.createFormData("file",filename,body);val uploaded=api.uploadChatFile(conversationId,part);api.sendMessage(MessageCreateRequest(conversation_id=conversationId,file_url=uploaded.url,file_name=uploaded.originalName?:filename,file_type=uploaded.mimeType?:mime,file_size=uploaded.size?:bytes.size.toLong()));selectConversation(conversationId)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?: "File upload failed")}}}
  fun loadNotifications(){viewModelScope.launch{try{_notifications.value=api.notifications().notifications}catch(_:Exception){}}}
