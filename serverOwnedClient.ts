@@ -1,7 +1,7 @@
 const API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
 
 class Builder {
-  table:string; method:'GET'|'POST'|'PATCH'|'DELETE'='GET'; fields='*'; filters:[string,string,string][]=[]; orderBy?:string; orderDesc=false; limitN?:number; body:any; singleMode:'none'|'single'|'maybe'='none';
+  table:string; method:'GET'|'POST'|'PATCH'|'DELETE'='GET'; fields='*'; filters:[string,string,string][]=[]; orderBy?:string; orderDesc=false; limitN?:number; body:any; onConflict?:string; singleMode:'none'|'single'|'maybe'='none';
   constructor(table:string){this.table=table;}
   select(fields='*'){this.fields=fields;this.method='GET';return this;}
   eq(c:string,v:any){this.filters.push(['eq',c,String(v)]);return this;}
@@ -18,10 +18,10 @@ class Builder {
   insert(body:any){this.method='POST';this.body=Array.isArray(body)?body[0]:body;return this;}
   update(body:any){this.method='PATCH';this.body=body;return this;}
   delete(){this.method='DELETE';return this;}
-  upsert(body:any,_opts?:any){this.method='POST';this.body=Array.isArray(body)?body[0]:body;return this;}
+  upsert(body:any,opts?:any){this.method='POST';this.body=Array.isArray(body)?body[0]:body;this.onConflict=opts?.onConflict;return this;}
   async run(){
     const q=new URLSearchParams(); if(this.method==='GET'){q.set('select',this.fields);for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);if(this.orderBy)q.set('order',this.orderBy+'.'+(this.orderDesc?'desc':'asc'));if(this.limitN)q.set('limit',String(this.limitN));}
-    if((this.method==='PATCH'||this.method==='DELETE')&&this.filters.length){const id=this.filters.find(x=>x[0]==='eq'&&x[1]==='id')?.[2];if(id)q.set('id',id);}
+    if(this.method==='POST'&&this.onConflict)q.set('onConflict',this.onConflict); if((this.method==='PATCH'||this.method==='DELETE')&&this.filters.length){const id=this.filters.find(x=>x[0]==='eq'&&x[1]==='id')?.[2];if(id)q.set('id',id);}
     const token=localStorage.getItem('exord_auth_token'); const headers:any={'Accept':'application/json'}; if(token)headers.Authorization='Bearer '+token; if(this.method==='POST'||this.method==='PATCH'){headers['Content-Type']='application/json';}
     const r=await fetch(API_BASE+'/api/v1/data/'+encodeURIComponent(this.table)+(q.toString()?'?'+q.toString():''),{method:this.method,headers,body:this.body===undefined?undefined:JSON.stringify(this.body)});
     const json=await r.json().catch(()=>({})); if(!r.ok){return {data:null,error:{message:json.error||('HTTP '+r.status),status:r.status}};}
