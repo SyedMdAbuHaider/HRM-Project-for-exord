@@ -29,13 +29,15 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  private val _conversations=MutableStateFlow<List<Conversation>>(emptyList());val conversations=_conversations.asStateFlow()
  private val _messages=MutableStateFlow<List<ChatMessage>>(emptyList());val messages=_messages.asStateFlow()
  private val _notifications=MutableStateFlow<List<NotificationRecord>>(emptyList());val notifications=_notifications.asStateFlow()
+ private val _profile=MutableStateFlow<Employee?>(null);val profile=_profile.asStateFlow()
 
  init{viewModelScope.launch{currentToken=sessions.accessToken();if(currentToken.isNotBlank())bootstrap()}}
 
  fun login(){viewModelScope.launch{_state.value=HrmState(loading=true);try{val r=api.login(LoginRequest(identifier.trim(),password));currentToken=r.accessToken;sessions.save(r.accessToken,r.refreshToken);bootstrap()}catch(e:Exception){_state.value=HrmState(error=e.message?:"Unable to sign in")}}}
 
- private suspend fun bootstrap(){try{val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:throw IllegalStateException("Employee profile not found");_state.value=HrmState(true,me.full_name,me.role.orEmpty());loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
+ private suspend fun bootstrap(){try{val meResponse=api.me(); val me=meResponse.user?:meResponse.data?:throw IllegalStateException("Employee profile not found");_profile.value=me;_state.value=HrmState(true,me.full_name,me.role.orEmpty());loadAttendance();loadLeaves();loadSalaries();loadNotifications()}catch(e:Exception){sessions.clear();currentToken="";_state.value=HrmState(error="Session expired")}}
 
+ fun changePassword(current:String,newPassword:String){viewModelScope.launch{try{api.changePassword(PasswordChangeRequest(current,newPassword));_state.value=_state.value.copy(error=null)}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Password change failed")}}}
  fun loadEmployees(){viewModelScope.launch{try{_employees.value=api.employees().employees}catch(_:Exception){}}}
  fun loadLeaves(){viewModelScope.launch{try{_leaves.value=api.leaves().leaves}catch(_:Exception){}}}
  fun createLeave(type:String,start:String,end:String,reason:String=""){viewModelScope.launch{try{api.createLeave(LeaveCreateRequest(type,start,end,reason.ifBlank{null}));loadLeaves()}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Leave request failed")}}}
