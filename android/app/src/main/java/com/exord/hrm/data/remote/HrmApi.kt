@@ -6,6 +6,9 @@ import retrofit2.http.GET
 import retrofit2.http.PATCH
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.data.model.MeResponse
+import com.exord.hrm.data.model.Conversation
+import com.exord.hrm.data.model.ConversationMember
+import com.exord.hrm.data.model.ChatMessage
 
 @Serializable data class LoginRequest(val identifier:String,val password:String)
 @Serializable data class LoginResponse(val accessToken:String,val refreshToken:String,val expiresIn:Int,val mustChangePassword:Boolean=false)
@@ -21,6 +24,8 @@ import com.exord.hrm.data.model.MeResponse
 @Serializable data class SalariesResponse(val salaries:List<com.exord.hrm.data.model.SalaryRecord>)
 @Serializable data class NotificationRecord(val id:String,val title:String?=null,val message:String?=null,val body:String?=null,val read_at:String?=null,val created_at:String?=null)
 @Serializable data class NotificationsResponse(val notifications:List<NotificationRecord>)
+@Serializable data class DataResponse<T>(val data:T)
+@Serializable data class MessageCreateRequest(val conversation_id:String,val content:String?=null)
 
 @Serializable data class LeaveCreateRequest(val leaveType:String,val startDate:String,val endDate:String,val reason:String?=null)
 interface HrmApi {
@@ -35,6 +40,10 @@ interface HrmApi {
  @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:LeaveCreateRequest):LeaveResponse
  @GET("api/v1/hrm/salaries") suspend fun salaries():SalariesResponse
  @PATCH("api/v1/hrm/leaves/{id}") suspend fun updateLeave(@retrofit2.http.Path("id") id:String,@Body body:Map<String,String?>):LeaveResponse
+ @GET("api/v1/data/conversation_members") suspend fun conversationMembers(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<ConversationMember>>
+ @GET("api/v1/data/conversations") suspend fun conversations(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<Conversation>>
+ @GET("api/v1/data/messages") suspend fun messages(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<ChatMessage>>
+ @POST("api/v1/data/messages") suspend fun sendMessage(@Body body:MessageCreateRequest):DataResponse<List<ChatMessage>>
  @GET("api/v1/hrm/notifications") suspend fun notifications():NotificationsResponse
  @POST("api/v1/hrm/notifications/{id}/read") suspend fun markNotificationRead(@retrofit2.http.Path("id") id:String)
 }
