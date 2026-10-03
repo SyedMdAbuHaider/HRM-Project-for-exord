@@ -304,8 +304,29 @@ async function insertGeneric(client, target, row, sourceTable) {
       [id,String(pick(row,'type')||'CUSTOM').toUpperCase(),department,textOrNull(pick(row,'name','title')),boolOr(pick(row,'is_private','isPrivate'),false),creator,dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString(),dateOrNull(pick(row,'updated_at','updatedAt'))||new Date().toISOString()]); return;
   }
   if (target === 'conversation_members') {
-    const conversation=await resolve(client,'conversations',pick(row,'conversation_id','conversationId'));
-    const employee=await resolve(client,'users',pick(row,'user_id','userId','employee_id'));
+    const conversationSource=pick(row,'conversation_id','conversationId');
+    const employeeSource=pick(row,'user_id','userId','employee_id');
+
+    const conversation=conversationSource
+      ? await mappedId(client,'conversations',conversationSource,false)
+      : null;
+
+    const employee=employeeSource
+      ? await mappedId(client,'users',employeeSource,false)
+      : null;
+
+    if (!conversation || !employee) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: !conversation && !employee
+          ? 'Skipped conversation member because conversation and employee references could not be resolved'
+          : !conversation
+            ? 'Skipped conversation member because conversation reference could not be resolved'
+            : 'Skipped conversation member because employee reference could not be resolved',
+      });
+      return;
+    }
+
     await client.query(`INSERT INTO conversation_members(conversation_id,employee_id,hidden_at,last_read_at,joined_at)
       VALUES($1,$2,$3,$4,$5) ON CONFLICT(conversation_id,employee_id) DO UPDATE SET hidden_at=EXCLUDED.hidden_at,last_read_at=EXCLUDED.last_read_at`,
       [conversation,employee,dateOrNull(pick(row,'hidden_at','hiddenAt')),dateOrNull(pick(row,'last_read_at','lastReadAt')),dateOrNull(pick(row,'joined_at','joinedAt'))||new Date().toISOString()]); return;
