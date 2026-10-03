@@ -57,19 +57,29 @@ dataRouter.all('/:table', requireAuth, async (req,res,next)=>{
     const out=await db.query('DELETE FROM '+qi(actual)+' WHERE '+where.join(' AND ')+' RETURNING *',filterVals);
     return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
   }
-  const body=bodyMap(t,req.body); const keys=Object.keys(body);
-  if(!keys.length)return res.json({data:[],error:null});
-  const bodyVals=keys.map(k=>body[k]);
+  const rawBodies=Array.isArray(req.body)?req.body:[req.body];
+  const bodies=rawBodies.map(row=>bodyMap(t,row));
+  if(!bodies.length||!Object.keys(bodies[0]).length)return res.json({data:[],error:null});
+  const keys=Object.keys(bodies[0]);
+  if(bodies.some(row=>Object.keys(row).join(',')!==keys.join(','))) throw Object.assign(new Error('All inserted rows must contain the same columns'),{status:400});
   if(req.method==='POST'){
     const cols=keys.map(qi).join(',');
-    const ph=bodyVals.map((_,i)=>'$'+(i+1)).join(',');
-    const conflict=req.query.onConflict?String(req.query.onConflict).split(',').map(qi).join(','):'';
+    const values=[]; const tuples=bodies.map(row=>'('+keys.map(k=>{values.push(row[k]);return '
+  if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
+  const offset=bodyVals.length;
+  const shiftedWhere=where.map(w=>w.replace(/\\$(\\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
+  const out=await db.query('UPDATE '+qi(actual)+' SET '+keys.map((k,i)=>qi(k)+'=$'+(i+1)).join(',')+' WHERE '+shiftedWhere.join(' AND ')+' RETURNING *',[...bodyVals,...filterVals]);
+  return res.json({data:out.rows.map(r=>legacy(t,r)),error:null});
+ }catch(e){next(e);} });
++values.length;}).join(',')+')').join(',');
+    const conflict=req.query.onConflict?String(req.query.onConflict).split(',').filter(Boolean).map(qi).join(','):'';
     const conflictKeys=String(req.query.onConflict||'').split(',').filter(Boolean);
     const updates=keys.filter(k=>!conflictKeys.includes(k)).map(k=>qi(k)+'=EXCLUDED.'+qi(k)).join(',');
-    const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES ('+ph+') '+(conflict?'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])):'')+' RETURNING *';
-    const out=await db.query(sql,bodyVals);
+    const sql='INSERT INTO '+qi(actual)+' ('+cols+') VALUES '+tuples+' '+(conflict?'ON CONFLICT ('+conflict+') DO UPDATE SET '+(updates||qi(keys[0])+'=EXCLUDED.'+qi(keys[0])):'')+' RETURNING *';
+    const out=await db.query(sql,values);
     return res.status(201).json({data:out.rows.map(r=>legacy(t,r)),error:null});
   }
+  const body=bodies[0]; const bodyVals=keys.map(k=>body[k]);
   if(!where.length) throw Object.assign(new Error('a filter is required'),{status:400});
   const offset=bodyVals.length;
   const shiftedWhere=where.map(w=>w.replace(/\\$(\\d+)/g,(_,n)=>'$'+(Number(n)+offset)));
