@@ -4,6 +4,9 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import retrofit2.http.Header
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.data.model.MeResponse
 import com.exord.hrm.data.model.Conversation
@@ -25,7 +28,8 @@ import com.exord.hrm.data.model.ChatMessage
 @Serializable data class NotificationRecord(val id:String,val title:String?=null,val message:String?=null,val body:String?=null,val read_at:String?=null,val created_at:String?=null)
 @Serializable data class NotificationsResponse(val notifications:List<NotificationRecord>)
 @Serializable data class DataResponse<T>(val data:T)
-@Serializable data class MessageCreateRequest(val conversation_id:String,val content:String?=null)
+@Serializable data class MessageCreateRequest(val conversation_id:String,val content:String?=null,val file_url:String?=null,val file_name:String?=null,val file_type:String?=null,val file_size:Long?=null)
+@Serializable data class FileUploadResponse(val url:String,val filename:String?=null,val originalName:String?=null,val size:Long?=null,val type:String?=null,val mimeType:String?=null,val id:String?=null)
 
 @Serializable data class LeaveCreateRequest(val leaveType:String,val startDate:String,val endDate:String,val reason:String?=null)
 @Serializable data class PasswordChangeRequest(val currentPassword:String,val newPassword:String)
@@ -46,6 +50,7 @@ interface HrmApi {
  @GET("api/v1/data/conversations") suspend fun conversations(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<Conversation>>
  @GET("api/v1/data/messages") suspend fun messages(@retrofit2.http.QueryMap query:Map<String,String>):DataResponse<List<ChatMessage>>
  @POST("api/v1/data/messages") suspend fun sendMessage(@Body body:MessageCreateRequest):DataResponse<List<ChatMessage>>
+ @Multipart @POST("api/v1/files/upload/chat") suspend fun uploadChatFile(@Header("X-Conv-Id") conversationId:String,@Part file:retrofit2.http.MultipartBody.Part):FileUploadResponse
  @GET("api/v1/hrm/notifications") suspend fun notifications():NotificationsResponse
  @POST("api/v1/hrm/notifications/{id}/read") suspend fun markNotificationRead(@retrofit2.http.Path("id") id:String)
 }
