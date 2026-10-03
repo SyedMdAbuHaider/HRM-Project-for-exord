@@ -12,10 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const token = localStorage.getItem('exord_auth_token');
 
   const headers = new Headers(options.headers);
@@ -36,11 +33,18 @@ async function request<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(
-      data?.error || `Request failed with status ${response.status}`,
-      response.status,
-      data
-    );
+    if (response.status === 401 && retry && path !== '/api/v1/auth/login' && path !== '/api/v1/auth/refresh') {
+      const refreshToken = localStorage.getItem('exord_refresh_token');
+      if (refreshToken) {
+        try {
+          const refreshed = await request<any>('/api/v1/auth/refresh', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken})}, false);
+          if (refreshed?.accessToken) localStorage.setItem('exord_auth_token', refreshed.accessToken);
+          if (refreshed?.refreshToken) localStorage.setItem('exord_refresh_token', refreshed.refreshToken);
+          return request<T>(path, options, false);
+        } catch {}
+      }
+    }
+    throw new ApiError(data?.error || `Request failed with status ${response.status}`, response.status, data);
   }
 
   return data as T;
