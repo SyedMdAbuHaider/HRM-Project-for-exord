@@ -27,8 +27,8 @@ object ApiFactory{
   val client=OkHttpClient.Builder().addInterceptor(Interceptor{chain->
    val response=chain.proceed(chain.request().newBuilder().apply{tokenProvider().takeIf{it.isNotBlank()}?.let{header("Authorization","Bearer $it")}}.build())
    if(response.code!=401||chain.request().url.encodedPath.contains("/auth/refresh")) return@Interceptor response
-   response.close()
    if(!refreshToken(api,tokenProvider,refreshProvider,saveTokens)){clearSession();return@Interceptor response}
+   response.close()
    chain.proceed(chain.request().newBuilder().header("Authorization","Bearer ${tokenProvider()}").build())
   }).build()
   api=Retrofit.Builder().baseUrl(BASE_URL).client(client).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(HrmApi::class.java)
