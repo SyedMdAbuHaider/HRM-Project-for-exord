@@ -38,6 +38,7 @@ class HrmViewModel(app:Application):AndroidViewModel(app){
  fun loadLeaves(){viewModelScope.launch{try{_leaves.value=api.leaves().leaves}catch(_:Exception){}}}
  fun createLeave(type:String,start:String,end:String,reason:String=""){viewModelScope.launch{try{api.createLeave(LeaveCreateRequest(type,start,end,reason.ifBlank{null}));loadLeaves()}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Leave request failed")}}}
  fun loadSalaries(){viewModelScope.launch{try{_salaries.value=api.salaries().salaries}catch(_:Exception){}}}
+ fun updateLeave(id:String,status:String,rejectionReason:String?=null){viewModelScope.launch{try{api.updateLeave(id,mapOf("status" to status,"rejectionReason" to rejectionReason));loadLeaves()}catch(e:Exception){_state.value=_state.value.copy(error=e.message?:"Leave approval failed")}}}
  fun loadNotifications(){viewModelScope.launch{try{_notifications.value=api.notifications().notifications}catch(_:Exception){}}}
  fun markNotificationRead(id:String){viewModelScope.launch{try{api.markNotificationRead(id);loadNotifications()}catch(_:Exception){}}}
  fun loadAttendance(){viewModelScope.launch{try{_attendance.value=api.attendance().records}catch(_:Exception){} }}
