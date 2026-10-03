@@ -43,7 +43,7 @@ const dateOrNull = (v) => {
 const dateOnlyOrNull = (v) => {
   if (v === undefined || v === null || String(v).trim() === '') return null;
   const s = String(v).trim().slice(0, 10);
-  return /^\\d{4}-\\d{2}-\\d{2}$/.test(s) ? s : null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
 };
 
 async function filesFor(table) {
@@ -90,6 +90,28 @@ async function mappedId(client, sourceTable, sourceId, create = true) {
 
 async function resolve(client, table, value) {
   return mappedId(client, table, value, true);
+}
+
+
+async function resolveEmployeeReference(client, value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const key = String(value).trim();
+
+  const mapped = await mappedId(client, 'users', key, false);
+  if (mapped) return mapped;
+
+  const byCode = await client.query(
+    'SELECT id FROM employees WHERE lower(trim(employee_code)) = lower(trim($1)) LIMIT 1',
+    [key],
+  );
+  if (byCode.rowCount) return byCode.rows[0].id;
+
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const byName = await client.query(
+    "SELECT id FROM employees WHERE lower(regexp_replace(full_name, '[^a-z0-9]', '', 'g')) = $1 LIMIT 1",
+    [normalized],
+  );
+  return byName.rowCount ? byName.rows[0].id : null;
 }
 
 async function ensureRole(client, code) {
@@ -393,9 +415,20 @@ async function insertGeneric(client, target, row, sourceTable) {
   }
   if (target === 'department_delegates') {
     const departmentSource=pick(row,'department_id','departmentId');
-    const department=departmentSource ? await mappedId(client,'departments',departmentSource,false) : null;
-    const employeeSource=pick(row,'employee_id','user_id','userId');
-    const employee=employeeSource ? await mappedId(client,'users',employeeSource,false) : null;
+    let department=departmentSource ? await mappedId(client,'departments',departmentSource,false) : null;
+    if (!department) {
+      const departmentName=pick(row,'department','department_name','departmentName');
+      if (departmentName) {
+        const normalized=String(departmentName).trim().toLowerCase();
+        const dr=await client.query(
+          "SELECT id FROM departments WHERE lower(trim(name)) = $1 LIMIT 1",
+          [normalized],
+        );
+        department=dr.rowCount ? dr.rows[0].id : null;
+      }
+    }
+    const employeeSource=pick(row,'employee_id','user_id','userId','delegate_user_id','delegateUserId');
+    const employee=employeeSource ? await resolveEmployeeReference(client,employeeSource) : null;
     if (!department || !employee) {
       await archiveLegacyRow(client, sourceTable, {
         ...row,
@@ -414,8 +447,8 @@ async function insertGeneric(client, target, row, sourceTable) {
   if (target === 'unit_approvers') {
     const unitSource=pick(row,'unit_id','unitId');
     const unit=unitSource ? await mappedId(client,'units',unitSource,false) : null;
-    const employeeSource=pick(row,'employee_id','user_id','userId');
-    const employee=employeeSource ? await mappedId(client,'users',employeeSource,false) : null;
+    const employeeSource=pick(row,'employee_id','user_id','userId','approver_user_id','approverUserId');
+    const employee=employeeSource ? await resolveEmployeeReference(client,employeeSource) : null;
     if (!unit || !employee) {
       await archiveLegacyRow(client, sourceTable, {
         ...row,
