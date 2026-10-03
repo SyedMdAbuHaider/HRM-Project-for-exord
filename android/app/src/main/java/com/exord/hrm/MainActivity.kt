@@ -106,7 +106,7 @@ private fun lastKnownLocation(context:Context):Location?{
     Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(14.dp)) {
      Row(Modifier.padding(14.dp).fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
       Column { Text(r.type ?: r.attendance_type ?: "Attendance",fontWeight=FontWeight.Bold); Text(r.occurred_at,color=Muted,fontSize=12.sp) }
-      if(r.is_late) Text("+undefined min",color=Red,fontWeight=FontWeight.Bold)
+      if(r.is_late) Text("+" + r.late_minutes + " min",color=Red,fontWeight=FontWeight.Bold)
      }
     }
    }
