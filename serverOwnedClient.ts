@@ -1,4 +1,4 @@
-const API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
+type BuilderResult={data:any,error:any};\n\nconst API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
 
 class Builder {
   table:string; method:'GET'|'POST'|'PATCH'|'DELETE'='GET'; fields='*'; filters:[string,string,string][]=[]; orderBy?:string; orderDesc=false; limitN?:number; body:any; onConflict?:string; singleMode:'none'|'single'|'maybe'='none';
@@ -28,7 +28,7 @@ class Builder {
     let data:any=json.data??null; if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}
     return {data,error:json.error??null};
   }
-  then(resolve:any,reject:any){return this.run().then(resolve,reject);}
+  then<TResult1=BuilderResult,TResult2=never>(onfulfilled?:((value:BuilderResult)=>TResult1|PromiseLike<TResult1>)|null,onrejected?:((reason:any)=>TResult2|PromiseLike<TResult2>)|null):Promise<TResult1|TResult2>{return this.run().then(onfulfilled,onrejected);}
 }
 
 export const supabase={from:(table:string)=>new Builder(table),channel:(_name:string)=>({on:()=>({subscribe:()=>({})})}),removeChannel:async()=>({})};
