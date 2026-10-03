@@ -15,6 +15,9 @@ import com.exord.hrm.data.model.MeResponse
 @Serializable data class AttendanceResponse(val record:com.exord.hrm.data.model.AttendanceRecord)
 @Serializable data class AttendanceListResponse(val records:List<com.exord.hrm.data.model.AttendanceRecord>)
 @Serializable data class EmployeesResponse(val employees:List<Employee>,val limit:Int=100,val offset:Int=0)
+@Serializable data class LeavesResponse(val leaves:List<com.exord.hrm.data.model.LeaveRequest>)
+@Serializable data class LeaveResponse(val leave:com.exord.hrm.data.model.LeaveRequest)
+@Serializable data class SalariesResponse(val salaries:List<com.exord.hrm.data.model.SalaryRecord>)
 interface HrmApi {
  @GET("api/v1/me") suspend fun me(): MeResponse
  @POST("api/v1/auth/login") suspend fun login(@Body request:LoginRequest): LoginResponse
@@ -23,4 +26,7 @@ interface HrmApi {
  @GET("api/v1/hrm/employees") suspend fun employees(@retrofit2.http.Query("limit") limit:Int=100,@retrofit2.http.Query("offset") offset:Int=0): EmployeesResponse
  @GET("api/v1/attendance") suspend fun attendance(@retrofit2.http.Query("limit") limit:Int=50): AttendanceListResponse
  @POST("api/v1/attendance") suspend fun recordAttendance(@Body request:AttendanceRequest): AttendanceResponse
+ @GET("api/v1/hrm/leaves") suspend fun leaves():LeavesResponse
+ @POST("api/v1/hrm/leaves") suspend fun createLeave(@Body body:Map<String,String?>):LeaveResponse
+ @GET("api/v1/hrm/salaries") suspend fun salaries():SalariesResponse
 }
