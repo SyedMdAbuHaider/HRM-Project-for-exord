@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase } from './serverOwnedClient';
+import { api } from './apiClient';
 
 // ── Offline Attendance Queue (inlined to avoid Vite circular dep issues) ─────
 const _AQ_KEY = 'exord_attendance_queue';
@@ -971,91 +972,27 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const login = async (identifier: string, password: string): Promise<boolean> => {
     const key = identifier.toLowerCase().trim();
-
-    // Layer 1: fast client-side check (localStorage)
     const rateCheck = checkRateLimit(key);
-    if (!rateCheck.allowed) {
-      const waitMins = Math.ceil(rateCheck.waitMs / 60000);
-      await supabase.from('activity_logs').insert({
-        id: genId('LOG'), timestamp: new Date().toISOString(),
-        user_id: 'system', user_name: 'System',
-        action: 'FAILED_LOGIN', category: 'AUTH',
-        details: `Blocked login (client) for: ${identifier} (locked ${waitMins}m)`,
-        severity: 'HIGH', metadata: null,
-      });
-      return false;
-    }
-
-    // Layer 2: server-side check (Supabase DB — bypasses localStorage bypass)
-    const serverCheck = await checkServerRateLimit(key);
-    if (!serverCheck.allowed) {
-      const waitMins = Math.ceil(serverCheck.waitMs / 60000);
-      await supabase.from('activity_logs').insert({
-        id: genId('LOG'), timestamp: new Date().toISOString(),
-        user_id: 'system', user_name: 'System',
-        action: 'FAILED_LOGIN', category: 'AUTH',
-        details: `Blocked login (server) for: ${identifier} (locked ${waitMins}m)`,
-        severity: 'CRITICAL', metadata: null,
-      });
-      return false;
-    }
-
-    // Use two separate queries to avoid raw-string injection issues with .or()
-    // (special chars like @ in email can silently break PostgREST filter strings)
-    let data: any = null;
-    const idUpper = identifier.toUpperCase().trim();
-    const { data: byEmail } = await supabase.from('users').select('*').eq('email', identifier.toLowerCase().trim()).maybeSingle();
-    if (byEmail) {
-      data = byEmail;
-    } else {
-      const { data: byId } = await supabase.from('users').select('*').eq('id', idUpper).maybeSingle();
-      data = byId;
-    }
-
-    // Hash the input password and compare against stored hash
-    const hashedInput = await hashPassword(password);
-    if (data && (data.password === hashedInput || data.password === password)) {
-      // Success — clear both layers
-      clearAttempts(key);
-      void clearServerAttempts(key);
-      const user = mapUser(data);
+    if (!rateCheck.allowed) return false;
+    try {
+      const result = await api.post<any>('/api/v1/auth/login', { identifier, password });
+      const token = result.accessToken || result.access_token;
+      if (!token) throw new Error('Authentication response did not include an access token.');
+      localStorage.setItem('exord_auth_token', token);
+      if (result.refreshToken || result.refresh_token) localStorage.setItem('exord_refresh_token', result.refreshToken || result.refresh_token);
+      const me = await api.get<any>('/api/v1/me');
+      const user = mapUser(me.employee || me.user || me);
       setCurrentUser(user);
-      try { localStorage.setItem('exord-session', JSON.stringify({ id: user.id })); } catch {}
-      try {
-        const token = btoa(JSON.stringify({ sub: user.id, role: user.role, name: user.name, exp: Math.floor(Date.now() / 1000) + 86400 }));
-        try { localStorage.setItem('exord_auth_token', token); } catch {}
-      } catch {}
-      const log = {
-        id: genId('LOG'), timestamp: new Date().toISOString(),
-        user_id: user.id, user_name: user.name,
-        action: 'USER_LOGIN', category: 'AUTH' as const,
-        details: `${user.name} (${user.role}) logged in.`,
-        severity: 'LOW' as const, metadata: null,
-      };
-      await supabase.from('activity_logs').insert(log);
+      localStorage.setItem('exord-session', JSON.stringify({ id: user.id }));
+      clearAttempts(key);
+      const log = { id: genId('LOG'), timestamp: new Date().toISOString(), user_id: user.id, user_name: user.name, action: 'USER_LOGIN', category: 'AUTH' as const, details: user.name + ' (' + user.role + ') logged in.', severity: 'LOW' as const, metadata: null };
       setActivityLogs(prev => [mapLog(log), ...prev]);
       await loadNotificationsForUser(user.id);
       return true;
+    } catch (e) {
+      recordFailedAttempt(key);
+      return false;
     }
-
-    // Failure — record in both layers
-    recordFailedAttempt(key);
-    void recordServerFailedAttempt(key);
-    const entry = loginAttempts.get(key);
-    const remaining = SECURITY_RULES.MAX_LOGIN_ATTEMPTS - (entry?.count || 0);
-    const isNowLocked = (entry?.lockedUntil || 0) > Date.now();
-    const log = {
-      id: genId('LOG'), timestamp: new Date().toISOString(),
-      user_id: 'system', user_name: 'System',
-      action: 'FAILED_LOGIN', category: 'AUTH' as const,
-      details: isNowLocked
-        ? `Account locked after ${SECURITY_RULES.MAX_LOGIN_ATTEMPTS} failed attempts: ${identifier}`
-        : `Failed login attempt: ${identifier} (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`,
-      severity: (isNowLocked ? 'CRITICAL' : 'HIGH') as const,
-      metadata: null,
-    };
-    await supabase.from('activity_logs').insert(log);
-    return false;
   };
 
   const logout = useCallback(async () => {
@@ -1069,26 +1006,12 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const changePassword = async (newPassword: string, currentPassword?: string) => {
     if (!currentUser) return { success: false, message: 'Auth Required.' };
-
-    if (currentPassword !== undefined) {
-      const { data: row } = await supabase
-        .from('users')
-        .select('password')
-        .eq('id', currentUser.id)
-        .single();
-      if (!row) return { success: false, message: 'Could not verify current password.' };
-      if (row.password !== currentPassword) {
-        await addActivityLog('PASSWORD_CHANGE_FAILED', 'AUTH', `${currentUser.name} provided wrong current password.`, 'MEDIUM');
-        return { success: false, message: 'Current password is incorrect.' };
-      }
+    try {
+      await api.post('/api/v1/me/password', { currentPassword, newPassword });
+      return { success: true, message: 'Password changed successfully.' };
+    } catch (e:any) {
+      return { success: false, message: e?.message || 'Could not change password.' };
     }
-
-    const { error } = await supabase.from('users').update({ password: newPassword, must_change_password: false }).eq('id', currentUser.id);
-    if (error) return { success: false, message: error.message };
-    setCurrentUser(p => p ? { ...p, mustChangePassword: false } : null);
-    setUsers(p => p.map(u => u.id === currentUser.id ? { ...u, mustChangePassword: false } : u));
-    await addActivityLog('PASSWORD_CHANGE', 'AUTH', `${currentUser.name} changed password.`, 'MEDIUM');
-    return { success: true, message: 'Password updated.' };
   };
 
   const updateUser = useCallback(async (id: string, updatesInput: Partial<User>) => {
