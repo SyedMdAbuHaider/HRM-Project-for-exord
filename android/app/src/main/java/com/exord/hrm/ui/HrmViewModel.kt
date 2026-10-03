@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
+import retrofit2.HttpException
 
 data class HrmState(val loggedIn:Boolean=false,val name:String="",val role:String="",val loading:Boolean=false,val error:String?=null)
 
