@@ -46,7 +46,7 @@ async function saveUpload(req,res,next,scope) {
     const conversationId=scope==='chat' ? String(req.header('X-Conv-Id')||'') : null;
     if(scope==='chat' && !conversationId) return res.status(400).json({error:'X-Conv-Id is required'});
     if(scope==='chat'){
-      const member=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',[conversationId,ownerId]);
+      const member=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2',[conversationId,ownerId]);
       if(!member.rowCount) return res.status(403).json({error:'Not a conversation member'});
     }
     const buf=file.buffer;
