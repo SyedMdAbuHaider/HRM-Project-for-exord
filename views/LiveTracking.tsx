@@ -268,9 +268,9 @@ const LiveTracking: React.FC = () => {
   // ── Derived ─────────────────────────────────────────────────────────────────
   const activeUserIds = Array.from(new Set(gpsLogs.map(l => l.userId)));
   // Counts only reflect POP/both units — office-only units are excluded
-  const upCount      = Object.values(popHealth).filter(h => h.status === 'up').length;
-  const downCount    = Object.values(popHealth).filter(h => h.status === 'down').length;
-  const unknownCount = Object.values(popHealth).filter(h => h.status === 'unknown' || h.status === 'checking').length;
+  const upCount      = Object.values(popHealth as Record<string, any>).filter(h => h.status === 'up').length;
+  const downCount    = Object.values(popHealth as Record<string, any>).filter(h => h.status === 'down').length;
+  const unknownCount = Object.values(popHealth as Record<string, any>).filter(h => h.status === 'unknown' || h.status === 'checking').length;
   const officeOnlyCount = units.filter(u => !u.unitType || u.unitType === 'office').length;
 
   return (
