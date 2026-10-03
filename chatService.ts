@@ -158,12 +158,6 @@ export const markConversationRead = async (convId: string, userId: string): Prom
 /** v2: Single RPC query for all unread counts. Falls back to legacy if RPC not deployed. */
 export const getUnreadCountsV2 = async (convIds: string[], userId: string): Promise<Record<string, number>> => {
   if (!convIds.length) return {};
-  const { data, error } = await supabase.rpc('get_unread_counts_v2', { p_user_id: userId, p_conv_ids: convIds });
-  if (!error && data) {
-    const result: Record<string, number> = {};
-    (data as any[]).forEach(row => { result[row.conversation_id] = Number(row.unread_count); });
-    return result;
-  }
   return getUnreadCountsForAll(convIds, userId);
 };
 
@@ -197,9 +191,6 @@ export const getUnreadCount = async (convId: string, userId: string): Promise<nu
 // ── Conversation Creation ─────────────────────────────────────────────────────
 
 export const getOrCreateDirectConversation = async (userAId: string, userBId: string): Promise<string | null> => {
-  const { data: rpcData, error: rpcErr } = await supabase.rpc('get_or_create_direct_conversation', { user_a: userAId, user_b: userBId });
-  if (!rpcErr && rpcData) return rpcData as string;
-
   const { data: aM } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', userAId);
   const { data: bM } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', userBId);
   if (aM && bM) {
