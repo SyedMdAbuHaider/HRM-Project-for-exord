@@ -60,7 +60,7 @@ async function saveUpload(req,res,next,scope) {
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,original_name,storage_key,mime_type,size_bytes,conversation_id,created_at`,
       [id,ownerId,scope,file.originalname,rel,file.mimetype,file.size,checksum,conversationId]);
     const row=out.rows[0];
-    res.status(201).json({url:'/files/'+encodeURIComponent(rel),filename:path.basename(rel),originalName:row.original_name,size:Number(row.size_bytes),type:category(row.mime_type),mimeType:row.mime_type,id:row.id});
+    res.status(201).json({url:'/api/v1/files/download/'+id,filename:path.basename(rel),originalName:row.original_name,size:Number(row.size_bytes),type:category(row.mime_type),mimeType:row.mime_type,id:row.id});
   } catch(e){next(e);}
 }
 filesRouter.post('/upload/avatar',requireAuth,async(req,res,next)=>saveUpload(req,res,next,'avatar'));
