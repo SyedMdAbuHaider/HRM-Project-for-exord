@@ -334,7 +334,12 @@ async function insertGeneric(client, target, row, sourceTable) {
   if (target === 'messages') {
     const conversation=await resolve(client,'conversations',pick(row,'conversation_id','conversationId'));
     const sender=await resolve(client,'users',pick(row,'sender_id','senderId','user_id','userId'));
-    const reply=await resolve(client,'messages',pick(row,'reply_to_id','replyToId'));
+
+    const replySource=pick(row,'reply_to_id','replyToId');
+    const reply=replySource
+      ? await mappedId(client,'messages',replySource,false)
+      : null;
+
     await client.query(`INSERT INTO messages(id,conversation_id,sender_id,content,file_url,file_type,file_name,file_size,mentions,reply_to_id,is_deleted,edited_at,created_at,sender_name)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(id) DO NOTHING`,
       [id,conversation,sender,textOrNull(pick(row,'content','message','body')),textOrNull(pick(row,'file_url','fileUrl')),textOrNull(pick(row,'file_type','fileType')),
