@@ -36,8 +36,10 @@ async function readMultipart(req) {
 }
 async function saveUpload(req,res,next,scope) {
   try {
-    const file=req.file;
-    if(!file) return res.status(400).json({error:'file is required'});
+    const part=await readMultipart(req);
+    if(!part) return res.status(400).json({error:'file is required'});
+    const mime=(part.headers.match(/Content-Type:\s*([^\r\n]+)/i)?.[1]||'application/octet-stream').trim();
+    const file={originalname:part.filename,size:part.body.length,mimetype:mime,buffer:part.body};
     if(file.size>MAX) return res.status(413).json({error:'file exceeds maximum size'});
     if(!ALLOWED.has(file.mimetype)) return res.status(415).json({error:'file type is not allowed'});
     const ownerId=req.auth.employeeId;
