@@ -18,7 +18,7 @@ import {
   Loader2, Camera, CheckCircle, AlertCircle, Edit2,
   Trash2, BarChart2, Building2, RefreshCw, ScanLine,
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../serverOwnedClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Asset {
