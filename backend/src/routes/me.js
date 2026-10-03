@@ -8,7 +8,7 @@ export const meRouter = Router();
 meRouter.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      \`SELECT e.id, e.employee_code, e.full_name, e.email, e.phone,
+      `SELECT e.id, e.employee_code, e.full_name, e.email, e.phone,
               e.designation, e.status, e.joining_date, e.avatar_url,
               e.base_salary, e.device_id, e.gender, e.blood_group,
               e.phone_official, e.phone_personal, e.phone_alternative,
@@ -25,7 +25,7 @@ meRouter.get('/', requireAuth, async (req, res, next) => {
        LEFT JOIN roles r ON r.id = e.role_id
        LEFT JOIN departments d ON d.id = e.department_id
        LEFT JOIN units u ON u.id = e.unit_id
-       WHERE e.id = $1\`,
+       WHERE e.id = $1`,
       [req.auth.employeeId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Employee not found' });
@@ -58,14 +58,14 @@ meRouter.post('/password', requireAuth, async (req, res, next) => {
 
     const passwordHash = await argon2.hash(newPassword);
     await db.query(
-      \`UPDATE employees
+      `UPDATE employees
        SET password_hash=$1,must_change_password=false,updated_at=now()
-       WHERE id=$2\`,
+       WHERE id=$2`,
       [passwordHash, req.auth.employeeId]
     );
     await db.query(
-      \`INSERT INTO audit_logs(actor_id,action,category,severity)
-       VALUES($1,'AUTH_PASSWORD_CHANGED','AUTH','INFO')\`,
+      `INSERT INTO audit_logs(actor_id,action,category,severity)
+       VALUES($1,'AUTH_PASSWORD_CHANGED','AUTH','INFO')`,
       [req.auth.employeeId]
     );
 
