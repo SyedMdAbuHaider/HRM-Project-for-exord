@@ -357,8 +357,21 @@ async function insertGeneric(client, target, row, sourceTable) {
        textOrNull(pick(row,'shift_name','shiftName')),String(pick(row,'status')||'SCHEDULED').toUpperCase(),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'department_delegates') {
-    const department=await resolve(client,'departments',pick(row,'department_id','departmentId'));
-    const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const departmentSource=pick(row,'department_id','departmentId');
+    const department=departmentSource ? await mappedId(client,'departments',departmentSource,false) : null;
+    const employeeSource=pick(row,'employee_id','user_id','userId');
+    const employee=employeeSource ? await mappedId(client,'users',employeeSource,false) : null;
+    if (!department || !employee) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: !department && !employee
+          ? 'Skipped department delegate because department and employee references could not be resolved'
+          : !department
+            ? 'Skipped department delegate because department reference could not be resolved'
+            : 'Skipped department delegate because employee reference could not be resolved',
+      });
+      return;
+    }
     await client.query(`INSERT INTO department_delegates(id,department_id,employee_id,starts_at,ends_at,created_at)
       VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO NOTHING`,
       [id,department,employee,dateOrNull(pick(row,'starts_at','startsAt'))||new Date().toISOString(),dateOrNull(pick(row,'ends_at','endsAt')),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
