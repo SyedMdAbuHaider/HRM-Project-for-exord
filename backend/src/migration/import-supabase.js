@@ -24,7 +24,12 @@ const boolOr = (v, fallback = false) => v === undefined || v === null ? fallback
 const jsonOr = (v, fallback = {}) => {
   if (v === undefined || v === null || v === '') return fallback;
   if (typeof v === 'object') return v;
-  try { return JSON.parse(v); } catch { return fallback; }
+  try {
+    const parsed = JSON.parse(String(v));
+    return typeof parsed === 'string' ? JSON.stringify(parsed) : parsed;
+  } catch {
+    return JSON.stringify(String(v));
+  }
 };
 const dateOrNull = (v) => {
   if (v === undefined || v === null || String(v).trim() === '') return null;
