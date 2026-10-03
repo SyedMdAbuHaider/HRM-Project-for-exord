@@ -22,13 +22,17 @@ const textOrNull = (v) => v === undefined || v === null || v === '' ? null : Str
 const numOr = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
 const boolOr = (v, fallback = false) => v === undefined || v === null ? fallback : Boolean(v);
 const jsonOr = (v, fallback = {}) => {
-  if (v === undefined || v === null || v === '') return fallback;
-  if (typeof v === 'object') return v;
+  if (v === undefined || v === null || v === '') {
+    return fallback === null ? null : JSON.stringify(fallback);
+  }
+  if (typeof v === 'object') {
+    try { return JSON.stringify(v); } catch { return JSON.stringify(String(v)); }
+  }
+  const s = String(v);
   try {
-    const parsed = JSON.parse(String(v));
-    return typeof parsed === 'string' ? JSON.stringify(parsed) : parsed;
+    return JSON.stringify(JSON.parse(s));
   } catch {
-    return JSON.stringify(String(v));
+    return JSON.stringify(s);
   }
 };
 const dateOrNull = (v) => {
