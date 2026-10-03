@@ -206,7 +206,15 @@ async function importUsers(client, rows) {
   }
 }
 
-async function archiveLegacyRow(client, sourceTable, row) {\n  const sourceId = String(pick(row,'id','user_id','employee_id','key') ?? crypto.randomUUID());\n  await client.query(\n    'INSERT INTO legacy_import_rows(source_table,source_id,payload) VALUES($1,$2,$3) ON CONFLICT(source_table,source_id) DO UPDATE SET payload=EXCLUDED.payload, imported_at=now()',\n    [sourceTable, sourceId, row],\n  );\n}\n\nasync function insertGeneric(client, target, row, sourceTable) {
+async function archiveLegacyRow(client, sourceTable, row) {
+  const sourceId = String(pick(row, 'id', 'user_id', 'employee_id', 'key') ?? crypto.randomUUID());
+  await client.query(
+    'INSERT INTO legacy_import_rows(source_table,source_id,payload) VALUES($1,$2,$3) ON CONFLICT(source_table,source_id) DO UPDATE SET payload=EXCLUDED.payload, imported_at=now()',
+    [sourceTable, sourceId, row],
+  );
+}
+
+async function insertGeneric(client, target, row, sourceTable) {
   const id = await resolve(client, sourceTable, pick(row,'id'));
   const common = {
     attendance: ['employee_id','type','status','occurred_at','location','ip_address','device_id','app_version','source','is_late','late_minutes','reason','client_event_id','synced_at'],
