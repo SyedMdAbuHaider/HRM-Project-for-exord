@@ -15,10 +15,10 @@ class Builder {
   limit(n:number){this.limitN=n;return this;}
   single(){this.singleMode='single';return this;}
   maybeSingle(){this.singleMode='maybe';return this;}
-  insert(body:any){this.method='POST';this.body=Array.isArray(body)?body[0]:body;return this;}
+  insert(body:any){this.method='POST';this.body=body;return this;}
   update(body:any){this.method='PATCH';this.body=body;return this;}
   delete(){this.method='DELETE';return this;}
-  upsert(body:any,opts?:any){this.method='POST';this.body=Array.isArray(body)?body[0]:body;this.onConflict=opts?.onConflict;return this;}
+  upsert(body:any,opts?:any){this.method='POST';this.body=body;this.onConflict=opts?.onConflict;return this;}
   async run(){
     const q=new URLSearchParams(); if(this.method==='GET'){q.set('select',this.fields);for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);if(this.orderBy)q.set('order',this.orderBy+'.'+(this.orderDesc?'desc':'asc'));if(this.limitN)q.set('limit',String(this.limitN));}
     if(this.method==='POST'&&this.onConflict)q.set('onConflict',this.onConflict); if(this.method==='PATCH'||this.method==='DELETE'){for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);}
