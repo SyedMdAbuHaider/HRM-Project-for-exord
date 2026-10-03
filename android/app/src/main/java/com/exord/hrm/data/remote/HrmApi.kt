@@ -18,6 +18,7 @@ import com.exord.hrm.data.model.MeResponse
 @Serializable data class LeavesResponse(val leaves:List<com.exord.hrm.data.model.LeaveRequest>)
 @Serializable data class LeaveResponse(val leave:com.exord.hrm.data.model.LeaveRequest)
 @Serializable data class SalariesResponse(val salaries:List<com.exord.hrm.data.model.SalaryRecord>)
+@Serializable data class LeaveCreateRequest(val leaveType:String,val startDate:String,val endDate:String,val reason:String?=null)
 interface HrmApi {
  @GET("api/v1/me") suspend fun me(): MeResponse
  @POST("api/v1/auth/login") suspend fun login(@Body request:LoginRequest): LoginResponse
