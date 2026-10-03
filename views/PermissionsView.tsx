@@ -1258,11 +1258,11 @@ const PermissionsView: React.FC = () => {
                       <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${CAP_CAT_COLORS[category] || 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>{category}</span>
                         <span className="text-[10px] text-slate-400 font-bold">
-                          {caps.filter(c => (roleCaps[selectedCapRole] || []).includes(c.key)).length}/{caps.length}
+                          {(caps as any[]).filter((c:any) => (roleCaps[selectedCapRole] || []).includes(c.key)).length}/{caps.length}
                         </span>
                       </div>
                       <div className="p-3 space-y-2">
-                        {caps.map(cap => {
+                        {(caps as any[]).map((cap:any) => {
                           const enabled = (roleCaps[selectedCapRole] || []).includes(cap.key);
                           return (
                             <button key={cap.key} onClick={() => isDev && toggleCap(selectedCapRole, cap.key)} disabled={!isDev}
