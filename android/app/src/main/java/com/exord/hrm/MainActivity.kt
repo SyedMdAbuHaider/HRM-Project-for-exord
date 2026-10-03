@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -115,7 +116,8 @@ private fun lastKnownLocation(context:Context):Location?{
   }}
  }
 }
-\n@Composable private fun Profile(vm:HrmViewModel,p:PaddingValues){
+
+@Composable private fun Profile(vm:HrmViewModel,p:PaddingValues){
  val me by vm.profile.collectAsState()
  var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var message by remember{mutableStateOf("")}
  LaunchedEffect(Unit){if(me==null){vm.loadEmployees()}}
@@ -131,5 +133,43 @@ private fun lastKnownLocation(context:Context):Location?{
    Button({if(next.length<8)message="Password must be at least 8 characters" else if(next!=confirm)message="Passwords do not match" else {vm.changePassword(current,next);message="Password update submitted"}},enabled=next.isNotBlank()&&confirm.isNotBlank()){Text("Update password")}
    if(message.isNotBlank())Text(message,color=if(message.contains("submitted"))Red else MaterialTheme.colorScheme.error,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
   }
+ }
+}
+
+@Composable private fun Chat(vm:HrmViewModel,p:PaddingValues){
+ val context=LocalContext.current
+ val conversations by vm.conversations.collectAsState()
+ val messages by vm.messages.collectAsState()
+ var text by remember{mutableStateOf("")}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  uri?.let{val conv=conversations.firstOrNull()?.id;if(conv!=null){
+   val name=it.lastPathSegment?.substringAfterLast('/')?: "attachment"
+   val mime=context.contentResolver.getType(it)?: "application/octet-stream"
+   context.contentResolver.openInputStream(it)?.use{stream->vm.sendChatFile(conv,name,mime,stream.readBytes())}
+  }}
+ }
+ LaunchedEffect(Unit){vm.loadChat()}
+ Column(Modifier.fillMaxSize().padding(p)){
+  Text("Chat",color=Red,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp,top=18.dp))
+  Text("Messages",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink,modifier=Modifier.padding(horizontal=18.dp))
+  if(conversations.isNotEmpty()){
+   LazyRow(Modifier.fillMaxWidth().height(60.dp).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){
+    items(conversations,key={it.id}){c->FilterChip(selected=c.id==conversations.firstOrNull()?.id,onClick={vm.selectConversation(c.id)},label={Text(c.name?:c.type)})}
+   }
+  }
+  LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+   items(messages,key={it.id}){m->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Card)){Column(Modifier.padding(13.dp)){Text(m.content?:m.file_name?: "Attachment",fontWeight=FontWeight.Medium);Text(m.created_at.orEmpty(),color=Muted,fontSize=10.sp)}}}
+  }
+  Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(text,{text=it},modifier=Modifier.weight(1f),singleLine=true,placeholder={Text("Message")})
+   OutlinedButton(onClick={picker.launch("*/*")},enabled=conversations.isNotEmpty()){Text("Attach")}
+   Button(onClick={conversations.firstOrNull()?.id?.let{vm.sendChatMessage(it,text);text=""}},enabled=text.isNotBlank()&&conversations.isNotEmpty()){Text("Send")}
+  }
+ }
+}
+
+@Composable private fun BoxCard(title:String,content:@Composable ColumnScope.()->Unit){
+ Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Card)){
+  Column(Modifier.padding(18.dp)){Text(title.uppercase(),color=Red,fontSize=11.sp,fontWeight=FontWeight.Black,letterSpacing=1.sp);Spacer(Modifier.height(7.dp));content()}
  }
 }
