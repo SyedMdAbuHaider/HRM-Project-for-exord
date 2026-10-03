@@ -14,7 +14,7 @@ class AuthInterceptor(private val tokenProvider:()->String):Interceptor{
  }
 }
 object ApiFactory {
- const val BASE_URL="https://hrm.exord.online/"
+ val BASE_URL: String get() = BuildConfig.HRM_API_URL
  fun create(tokenProvider:()->String):HrmApi{
   val json=Json{ignoreUnknownKeys=true}
   val client=OkHttpClient.Builder().addInterceptor(AuthInterceptor(tokenProvider)).build()
