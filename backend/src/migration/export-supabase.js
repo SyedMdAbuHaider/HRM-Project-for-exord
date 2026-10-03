@@ -24,7 +24,7 @@ for(const table of tables){
   let offset=0;
   const pageSize=1000;
   while(true){
-    const res=await fetch(`${url.replace(/\\/$/,'')}/rest/v1/${table}?select=*&offset=${offset}&limit=${pageSize}`,{headers});
+    const res=await fetch(`${url.replace(/\/$/,'')}/rest/v1/${table}?select=*&offset=${offset}&limit=${pageSize}`,{headers});
     if(!res.ok){
       const body=await res.text();
       if(res.status===404){ console.warn(`Skipping missing table ${table}`); break; }
