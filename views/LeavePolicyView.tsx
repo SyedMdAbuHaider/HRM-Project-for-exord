@@ -265,10 +265,10 @@ const LeavePolicyView: React.FC = () => {
           <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
             <div className="p-2 bg-[#E31E24]/10 text-[#E31E24]"><Calendar size={15} /></div>
             <h3 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">{leaveType}</h3>
-            <span className="ml-auto text-[10px] font-black text-slate-400">{policies.length} tier{policies.length !== 1 ? 's' : ''}</span>
+            <span className="ml-auto text-[10px] font-black text-slate-400">{(policies as any[]).length} tier{(policies as any[]).length !== 1 ? 's' : ''}</span>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {policies.map(p => (
+            {(policies as any[]).map((p:any) => (
               <div key={p.id} className="p-4 sm:p-5">
                 <div className="flex items-start gap-4">
                   {/* Service range badge */}
