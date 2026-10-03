@@ -4,6 +4,7 @@ import { DesignationTrackModal } from './components/DesignationTrackModal';
 import { PromotionCertModal } from './components/PromotionCertModal';
 import { RoleCapabilitiesProvider } from './views/RoleCapabilitiesView';
 import { HRMProvider, useHRM } from './store';
+import { supabase } from './serverOwnedClient';
 import { UserRole } from './types';
 import Sidebar from './components/Sidebar';
 import {
