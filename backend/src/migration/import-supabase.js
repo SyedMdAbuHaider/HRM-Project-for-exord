@@ -343,9 +343,17 @@ async function insertGeneric(client, target, row, sourceTable) {
   }
   if (target === 'duty_roster') {
     const employee=await resolve(client,'users',pick(row,'employee_id','user_id','userId'));
+    const dutyDate=dateOnlyOrNull(pick(row,'duty_date','dutyDate','date'));
+    if (!dutyDate) {
+      await archiveLegacyRow(client, sourceTable, {
+        ...row,
+        _migration_reason: 'Skipped duty roster row because required duty_date could not be recovered from legacy data',
+      });
+      return;
+    }
     await client.query(`INSERT INTO duty_roster(id,employee_id,duty_date,check_in_time,check_out_time,shift_name,status,created_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING`,
-      [id,employee,dateOnlyOrNull(pick(row,'duty_date','dutyDate')),pick(row,'check_in_time','checkInTime')||null,pick(row,'check_out_time','checkOutTime')||null,
+      [id,employee,dutyDate,pick(row,'check_in_time','checkInTime')||null,pick(row,'check_out_time','checkOutTime')||null,
        textOrNull(pick(row,'shift_name','shiftName')),String(pick(row,'status')||'SCHEDULED').toUpperCase(),dateOrNull(pick(row,'created_at','createdAt'))||new Date().toISOString()]); return;
   }
   if (target === 'department_delegates') {
