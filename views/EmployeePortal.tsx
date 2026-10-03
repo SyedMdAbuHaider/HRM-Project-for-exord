@@ -363,11 +363,11 @@ const WorkforceStatusBoard: React.FC = () => {
             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50">
               <Building2 size={12} className="text-[#E31E24]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">{groupKey}</span>
-              <span className="ml-auto text-[9px] font-black text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">{emps.length}</span>
+              <span className="ml-auto text-[9px] font-black text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">{(emps as any[]).length}</span>
             </div>
           )}
           <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
-            {emps.map(({ user, status }) => {
+            {(emps as any[]).map(({ user, status }) => {
               const cfg = CFG[status] || CFG.ABSENT;
               return (
                 <div key={user.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -1700,8 +1700,8 @@ const EmployeePortal: React.FC = () => {
                 };
                 const changes: Record<string, { old: string; new: string }> = {};
                 Object.entries(profileEditFields).forEach(([field, newVal]) => {
-                  if (newVal.trim() !== '' && newVal.trim() !== (currentData[field] || '').trim()) {
-                    changes[field] = { old: currentData[field] || '', new: newVal.trim() };
+                  if (String(newVal).trim() !== '' && String(newVal).trim() !== String(currentData[field] || '').trim()) {
+                    changes[field] = { old: currentData[field] || '', new: String(newVal).trim() };
                   }
                 });
                 if (Object.keys(changes).length === 0) {
