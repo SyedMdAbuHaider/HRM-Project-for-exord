@@ -359,8 +359,9 @@ export const isWeekendForUser = (user: User): boolean => {
 // ── Duty schedule helpers ─────────────────────────────────────────────────────
 
 /** Parse "HH:MM" to today's Date object */
-export const parseDutyTime = (timeStr: string): Date => {
-  const [h, m] = timeStr.split(':').map(Number);
+export const parseDutyTime = (timeStr?: string | null): Date => {
+  const safe = typeof timeStr === 'string' && /^\d{1,2}:\d{2}$/.test(timeStr) ? timeStr : '09:00';
+  const [h, m] = safe.split(':').map(Number);
   const d = new Date();
   d.setHours(h, m, 0, 0);
   return d;
