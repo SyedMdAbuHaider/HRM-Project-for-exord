@@ -83,7 +83,10 @@ export interface ScheduleChangeRequest {
 }
 
 export interface User {
+  /** Internal PostgreSQL UUID. Keep this for API relationships and authorization. */
   id: string;
+  /** Human-facing HR employee code, e.g. E0208. */
+  employeeCode?: string;
   name: string;
   email: string;
   password?: string;
