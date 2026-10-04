@@ -406,7 +406,9 @@ const mapDept = (r: any): Department => {
 };
 
 const mapUser = (r: any): User => ({
-  id: r.id, name: safeString(r.name || r.full_name, 'Unknown Employee'), email: safeString(r.email),
+  id: safeString(r.id),
+  employeeCode: safeString(r.employee_code || r.employee_id || r.employeeCode || r.id),
+  name: safeString(r.name || r.full_name, 'Unknown Employee'), email: safeString(r.email),
   role: (r.role || UserRole.EMPLOYEE) as UserRole, department: safeString(r.department), baseSalary: r.base_salary,
   deviceId: r.device_id, unitLocation: { lat: r.unit_location_lat || 0, lng: r.unit_location_lng || 0 },
   fatherName: r.father_name, motherName: r.mother_name, nid: r.nid,
