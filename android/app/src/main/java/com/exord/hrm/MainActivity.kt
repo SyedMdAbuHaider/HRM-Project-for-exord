@@ -58,12 +58,62 @@ class MainActivity:ComponentActivity(){
  }
 }
 @Composable fun Login(vm:HrmViewModel,loading:Boolean,error:String?){
- Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
-  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp);Text("HRM",fontSize=42.sp,fontWeight=FontWeight.Black,color=Ink);Text("Employee & Workforce Management",color=Muted)
-  Spacer(Modifier.height(30.dp));OutlinedTextField(vm.identifier,{vm.identifier=it},label={Text("Employee ID / Email")},singleLine=true,modifier=Modifier.fillMaxWidth())
-  Spacer(Modifier.height(12.dp));OutlinedTextField(vm.password,{vm.password=it},label={Text("Password")},singleLine=true,modifier=Modifier.fillMaxWidth())
-  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=13.sp)
-  Spacer(Modifier.height(18.dp));Button(vm::login,enabled=!loading&&vm.identifier.isNotBlank()&&vm.password.isNotBlank(),modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(14.dp)){Text(if(loading)"Signing in…" else "Sign In",fontWeight=FontWeight.Bold)}
+ var identifier by rememberSaveable { mutableStateOf(vm.identifier) }
+ var password by rememberSaveable { mutableStateOf(vm.password) }
+ var passwordVisible by rememberSaveable { mutableStateOf(false) }
+ val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+ val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+ LaunchedEffect(identifier) { vm.identifier = identifier }
+ LaunchedEffect(password) { vm.password = password }
+
+ Column(
+  modifier=Modifier.fillMaxSize().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp),
+  verticalArrangement=Arrangement.Center,
+  horizontalAlignment=Alignment.CenterHorizontally
+ ){
+  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp)
+  Text("HRM",fontSize=42.sp,fontWeight=FontWeight.Black,color=Ink)
+  Text("Employee & Workforce Management",color=Muted)
+  Spacer(Modifier.height(30.dp))
+  OutlinedTextField(
+   value=identifier,
+   onValueChange={identifier=it},
+   label={Text("Employee ID / Email")},
+   singleLine=true,
+   enabled=!loading,
+   keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Text,imeAction=androidx.compose.ui.text.input.ImeAction.Next),
+   keyboardActions=androidx.compose.foundation.text.KeyboardActions(onNext={focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)}),
+   modifier=Modifier.fillMaxWidth()
+  )
+  Spacer(Modifier.height(12.dp))
+  OutlinedTextField(
+   value=password,
+   onValueChange={password=it},
+   label={Text("Password")},
+   singleLine=true,
+   enabled=!loading,
+   visualTransformation=if(passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+   trailingIcon={
+    IconButton(onClick={passwordVisible=!passwordVisible},enabled=!loading){
+     Text(if(passwordVisible)"Hide" else "Show",fontSize=11.sp,color=Red,fontWeight=FontWeight.Bold)
+    }
+   },
+   keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Password,imeAction=androidx.compose.ui.text.input.ImeAction.Done),
+   keyboardActions=androidx.compose.foundation.text.KeyboardActions(onDone={
+    focusManager.clearFocus(force=true)
+    keyboard?.hide()
+    if(identifier.isNotBlank() && password.isNotBlank() && !loading) vm.login()
+   }),
+   modifier=Modifier.fillMaxWidth()
+  )
+  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))
+  Spacer(Modifier.height(18.dp))
+  Button(
+   onClick={focusManager.clearFocus().let{keyboard?.hide(); vm.login()}},
+   enabled=!loading&&identifier.isNotBlank()&&password.isNotBlank(),
+   modifier=Modifier.fillMaxWidth().height(52.dp),
+   shape=RoundedCornerShape(14.dp)
+  ){Text(if(loading)"Signing in…" else "Sign In",fontWeight=FontWeight.Bold)}
  }
 }
 private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal","Clock","Chat","Pay","More");"MANAGER"->listOf("Home","Team","Requests","Chat","More");"CO_ADMIN","HR"->listOf("Home","People","Requests","Chat","More");else->listOf("Home","People","Attend","Chat","More") }
