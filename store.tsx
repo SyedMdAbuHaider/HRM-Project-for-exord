@@ -398,7 +398,7 @@ const mapDept = (r: any): Department => {
 };
 
 const mapUser = (r: any): User => ({
-  id: r.id, name: r.name, email: r.email,
+  id: r.id, name: r.name || r.full_name || '', email: r.email,
   role: r.role as UserRole, department: r.department, baseSalary: r.base_salary,
   deviceId: r.device_id, unitLocation: { lat: r.unit_location_lat || 0, lng: r.unit_location_lng || 0 },
   fatherName: r.father_name, motherName: r.mother_name, nid: r.nid,
