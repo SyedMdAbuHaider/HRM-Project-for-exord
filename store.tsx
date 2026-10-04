@@ -379,12 +379,20 @@ const HRMContext = createContext<HRMContextType | undefined>(undefined);
 
 const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
 
+const toFiniteNumber = (value: unknown, fallback: number | null = null): number | null => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+const safeString = (value: unknown, fallback = ''): string =>
+  value === null || value === undefined ? fallback : String(value);
+
 const mapUnit = (r: any): Unit => ({
   id: r.id,
-  name: r.name,
-  lat: r.lat ?? r.latitude ?? null,
-  lng: r.lng ?? r.longitude ?? null,
-  radius: r.radius ?? r.radius_meters ?? 150,
+  name: safeString(r.name, 'Unnamed Unit'),
+  lat: toFiniteNumber(r.lat ?? r.latitude),
+  lng: toFiniteNumber(r.lng ?? r.longitude),
+  radius: toFiniteNumber(r.radius ?? r.radius_meters, 150) ?? 150,
   unitType: r.unit_type || r.unitType || 'office',
   snmpConfig: r.snmp_config || r.snmpConfig || undefined,
   headUserId: r.head_user_id || undefined,
@@ -398,8 +406,8 @@ const mapDept = (r: any): Department => {
 };
 
 const mapUser = (r: any): User => ({
-  id: r.id, name: r.name || r.full_name || '', email: r.email,
-  role: r.role as UserRole, department: r.department, baseSalary: r.base_salary,
+  id: r.id, name: safeString(r.name || r.full_name, 'Unknown Employee'), email: safeString(r.email),
+  role: (r.role || UserRole.EMPLOYEE) as UserRole, department: safeString(r.department), baseSalary: r.base_salary,
   deviceId: r.device_id, unitLocation: { lat: r.unit_location_lat || 0, lng: r.unit_location_lng || 0 },
   fatherName: r.father_name, motherName: r.mother_name, nid: r.nid,
   presentAddress: r.present_address, permanentAddress: r.permanent_address,
@@ -449,9 +457,9 @@ const mapAttendance = (r: any): AttendanceRecord => ({
 });
 
 const mapLeave = (r: any): LeaveRequest => ({
-  id: r.id, userId: r.user_id, userName: r.user_name,
+  id: r.id, userId: safeString(r.user_id), userName: safeString(r.user_name, 'Unknown Employee'),
   userRole: (r.user_role as UserRole) || UserRole.EMPLOYEE,
-  department: r.department || '',
+  department: safeString(r.department),
   startDate: r.start_date, endDate: r.end_date,
   type: r.type, status: r.status as LeaveStatus, reason: r.reason,
   managerApprovedBy: r.manager_approved_by, hrApprovedBy: r.hr_approved_by,
@@ -459,24 +467,30 @@ const mapLeave = (r: any): LeaveRequest => ({
   rejectedBy: r.rejected_by, rejectionReason: r.rejection_reason,
 });
 const mapSalary = (r: any): SalaryRecord => ({
-  id: r.id, userId: r.user_id, userName: r.user_name,
+  id: r.id, userId: safeString(r.user_id), userName: safeString(r.user_name, 'Unknown Employee'),
   month: r.month, year: r.year, base: r.base, bonus: r.bonus,
   deductions: r.deductions, net: r.net, status: r.status,
 });
 const mapLog = (r: any): ActivityLog => ({
-  id: r.id, timestamp: r.timestamp, userId: r.user_id, userName: r.user_name,
-  action: r.action, category: r.category, details: r.details,
-  severity: r.severity, ipAddress: r.ip_address, metadata: r.metadata,
+  id: r.id, timestamp: r.timestamp || r.created_at || new Date().toISOString(),
+  userId: safeString(r.user_id || r.actor_id, 'system'),
+  userName: safeString(r.user_name, 'System'),
+  action: safeString(r.action, 'UNKNOWN_ACTION'),
+  category: (r.category || 'SYSTEM') as ActivityLog['category'],
+  details: safeString(r.details),
+  severity: (['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(r.severity)) ? r.severity : 'LOW') as ActivityLog['severity'],
+  ipAddress: r.ip_address,
+  metadata: r.metadata,
 });
 const mapNotification = (r: any): Notification => ({
   id: r.id, recipientId: r.recipient_id, senderId: r.sender_id,
-  senderName: r.sender_name, title: r.title, message: r.message,
+  senderName: safeString(r.sender_name, 'System'), title: safeString(r.title), message: safeString(r.message),
   type: r.type, metadata: r.metadata, isRead: r.is_read, createdAt: r.created_at,
 });
 const mapLoan = (r: any): LoanRequest => ({
-  id: r.id, userId: r.user_id, userName: r.user_name,
-  department: r.department, type: r.type, amount: r.amount,
-  reason: r.reason, status: r.status, createdAt: r.created_at,
+  id: r.id, userId: safeString(r.user_id), userName: safeString(r.user_name, 'Unknown Employee'),
+  department: safeString(r.department), type: r.type, amount: r.amount,
+  reason: safeString(r.reason), status: r.status || 'PENDING', createdAt: r.created_at,
   reviewedBy: r.reviewed_by, reviewNote: r.review_note,
   // ── Repayment fields ──────────────────────────────────────────────────────
   totalMonths:       r.total_months       ?? 0,
@@ -503,9 +517,9 @@ const mapLeavePolicy = (r: any): LeavePolicy => ({
 
 const mapScheduleChangeRequest = (r: any): ScheduleChangeRequest => ({
   id: r.id,
-  userId: r.user_id,
-  userName: r.user_name,
-  department: r.department,
+  userId: safeString(r.user_id),
+  userName: safeString(r.user_name, 'Unknown Employee'),
+  department: safeString(r.department),
   changeType: r.change_type,
   requestedCheckIn: r.requested_check_in,
   requestedCheckOut: r.requested_check_out,
@@ -799,14 +813,16 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const { data: ddData } = await supabase.from('department_delegates').select('*');
           if (ddData) setDepartmentDelegates(ddData.map((d: any) => ({
             id: d.id, department: d.department, normalRole: d.normal_role || 'MANAGER',
-            delegateUserId: d.delegate_user_id, delegateUserName: d.delegate_user_name,
+            delegateUserId: d.delegate_user_id, delegateUserName: safeString(d.delegate_user_name, 'Unknown Employee'),
             createdBy: d.created_by || '', createdAt: d.created_at,
           })));
         } catch {}
 
         try {
           const { data: crData } = await supabase.from('custom_roles').select('id, name, color').order('name');
-          if (crData) setCustomRoles(crData);
+          if (crData) setCustomRoles(crData.map((r: any) => ({
+            id: r.id, name: safeString(r.name, 'Custom Role'), color: safeString(r.color, '#E31E24') || '#E31E24'
+          })));
         } catch {}
       })();
 
