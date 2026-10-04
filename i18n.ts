@@ -7,7 +7,10 @@ export const loadUserLang = (_userId?: string): Language => { try { return local
 export const saveUserLang = (userOrLang: string, maybeLang?: Language) => { const l = (maybeLang ?? userOrLang) as Language; try { localStorage.setItem(KEY, l); } catch {} };
 export const getGreetingKey = (h: number = new Date().getHours()): TranslationKey => h < 12 ? 'good_morning' : h < 18 ? 'good_afternoon' : 'good_evening';
 export const getGreetingEmoji = (h: number = new Date().getHours()) => h < 12 ? '☀️' : h < 18 ? '🌤️' : '🌙';
-export const getFirstName = (n: string) => n.trim().split(/\s+/)[0] || n;
+export const getFirstName = (n?: string | null) => {
+  const safe = typeof n === 'string' ? n.trim() : '';
+  return safe.split(/\s+/)[0] || 'User';
+};
 export const LanguageProvider = ({ children }: React.PropsWithChildren) => {
   const [lang, setLangState] = useState<Language>(loadUserLang);
   const setLang = useCallback((l: Language) => { setLangState(l); saveUserLang(l); }, []);
