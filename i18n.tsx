@@ -54,8 +54,10 @@ export const getGreetingEmoji = (): string => {
 };
 
 /** Get the user's first name */
-export const getFirstName = (fullName: string): string =>
-  fullName.trim().split(' ')[0] || fullName;
+export const getFirstName = (fullName?: string | null): string => {
+  const safe = typeof fullName === 'string' ? fullName.trim() : '';
+  return safe.split(/\s+/)[0] || 'User';
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Translation table
