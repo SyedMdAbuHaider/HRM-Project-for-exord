@@ -49,7 +49,16 @@ class MainActivity:ComponentActivity(){
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn){if(s.mustChangePassword)ForcePassword(vm,s.error)else Shell(vm,s.name,s.role,app)}else Login(vm,s.loading,s.error)}}
 }
-@Composable private fun ForcePassword(vm:HrmViewModel,error:String?){\n var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")}\n Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){\n  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp);Text("SECURITY PROTOCOL UPDATE",fontSize=28.sp,fontWeight=FontWeight.Black,color=Ink);Text("Initial access detected. Set a new password before continuing.",color=Muted)\n  Spacer(Modifier.height(28.dp));OutlinedTextField(next,{next=it},label={Text("New Password")},singleLine=true,modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(10.dp));OutlinedTextField(confirm,{confirm=it},label={Text("Confirm Password")},singleLine=true,modifier=Modifier.fillMaxWidth())\n  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))\n  Spacer(Modifier.height(16.dp));Button({vm.changePassword("",next)},enabled=next.length>=8&&next==confirm,modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(14.dp)){Text("Commit Credentials",fontWeight=FontWeight.Black)}\n }\n}\n@Composable fun Login(vm:HrmViewModel,loading:Boolean,error:String?){
+@Composable private fun ForcePassword(vm:HrmViewModel,error:String?){
+ var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")}
+ Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
+  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp);Text("SECURITY PROTOCOL UPDATE",fontSize=28.sp,fontWeight=FontWeight.Black,color=Ink);Text("Initial access detected. Set a new password before continuing.",color=Muted)
+  Spacer(Modifier.height(28.dp));OutlinedTextField(next,{next=it},label={Text("New Password")},singleLine=true,modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(10.dp));OutlinedTextField(confirm,{confirm=it},label={Text("Confirm Password")},singleLine=true,modifier=Modifier.fillMaxWidth())
+  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
+  Spacer(Modifier.height(16.dp));Button({vm.changePassword("",next)},enabled=next.length>=8&&next==confirm,modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(14.dp)){Text("Commit Credentials",fontWeight=FontWeight.Black)}
+ }
+}
+@Composable fun Login(vm:HrmViewModel,loading:Boolean,error:String?){
  Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
   Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp);Text("HRM",fontSize=42.sp,fontWeight=FontWeight.Black,color=Ink);Text("Employee & Workforce Management",color=Muted)
   Spacer(Modifier.height(30.dp));OutlinedTextField(vm.identifier,{vm.identifier=it},label={Text("Employee ID / Email")},singleLine=true,modifier=Modifier.fillMaxWidth())
