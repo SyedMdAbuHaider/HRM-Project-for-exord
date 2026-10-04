@@ -155,14 +155,16 @@ const LiveTracking: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current || !units.length) return;
-    mapRef.current.setView([units[0].lat, units[0].lng], mapRef.current.getZoom(), { animate: false });
+    const locatedUnit = units.find(unit => unit.lat != null && unit.lng != null);
+    if (!mapRef.current || !locatedUnit) return;
+    mapRef.current.setView([locatedUnit.lat, locatedUnit.lng], mapRef.current.getZoom(), { animate: false });
   }, [units]);
 
   // ── Unit markers — update colour whenever health changes ────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
     units.forEach(unit => {
+      if (unit.lat == null || unit.lng == null) return;
       const isPop = unit.unitType === 'pop' || unit.unitType === 'both';
       const health  = isPop ? popHealth[unit.id] : undefined;
       // Office-only units always show as 'unknown' (grey) — no probing
@@ -189,7 +191,7 @@ const LiveTracking: React.FC = () => {
             </div>
             ${health?.latencyMs != null ? `<p style="font-size:9px;color:#94a3b8;margin-top:4px">Latency: ${health.latencyMs}ms</p>` : ''}
             <div style="border-top:1px solid #f1f5f9;margin-top:6px;padding-top:4px">
-              <p style="font-size:8px;font-family:monospace;color:#94a3b8">${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}<br>Radius: ${unit.radius}m</p>
+              <p style="font-size:8px;font-family:monospace;color:#94a3b8">${unit.lat == null || unit.lng == null ? 'Coordinates unavailable' : `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`}<br>Radius: ${unit.radius}m</p>
             </div>
           </div>`);
       } else {
@@ -214,7 +216,7 @@ const LiveTracking: React.FC = () => {
             </div>
             ${health?.latencyMs != null ? `<p style="font-size:9px;color:#94a3b8;margin-top:4px">Latency: ${health.latencyMs}ms</p>` : ''}
             <div style="border-top:1px solid #f1f5f9;margin-top:6px;padding-top:4px">
-              <p style="font-size:8px;font-family:monospace;color:#94a3b8">${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}<br>Radius: ${unit.radius}m</p>
+              <p style="font-size:8px;font-family:monospace;color:#94a3b8">${unit.lat == null || unit.lng == null ? 'Coordinates unavailable' : `${unit.lat.toFixed(5)}, ${unit.lng.toFixed(5)}`}<br>Radius: ${unit.radius}m</p>
             </div>
           </div>`);
 
@@ -319,7 +321,7 @@ const LiveTracking: React.FC = () => {
               return (
                 <div
                   key={unit.id}
-                  onClick={() => mapRef.current?.flyTo([unit.lat, unit.lng], 16, { animate: true, duration: 1 })}
+                  onClick={() => { if (unit.lat != null && unit.lng != null) mapRef.current?.flyTo([unit.lat, unit.lng], 16, { animate: true, duration: 1 }); }}
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.01] ${
                     status === 'down'    ? 'border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10' :
                     status === 'up'     ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-900/5' :

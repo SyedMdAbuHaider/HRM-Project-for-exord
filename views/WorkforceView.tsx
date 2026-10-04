@@ -1097,7 +1097,7 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
                             const u = units.find(x => x.id === newEmployee.unitId);
                             return u ? (
                               <p className="text-[9px] text-slate-400 font-bold mt-1 flex items-center gap-1">
-                                <MapPin size={9} /> {u.name} · {u.lat.toFixed(4)}, {u.lng.toFixed(4)} · Radius: {u.radius}m
+                                <MapPin size={9} /> {u.name} · {u.lat == null || u.lng == null ? 'Coordinates unavailable' : `${u.lat.toFixed(4)}, ${u.lng.toFixed(4)}`} · Radius: {u.radius}m
                               </p>
                             ) : null;
                           })()}

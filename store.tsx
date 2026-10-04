@@ -382,9 +382,9 @@ const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).substr
 const mapUnit = (r: any): Unit => ({
   id: r.id,
   name: r.name,
-  lat: r.lat,
-  lng: r.lng,
-  radius: r.radius,
+  lat: r.lat ?? r.latitude ?? null,
+  lng: r.lng ?? r.longitude ?? null,
+  radius: r.radius ?? r.radius_meters ?? 150,
   unitType: r.unit_type || r.unitType || 'office',
   snmpConfig: r.snmp_config || r.snmpConfig || undefined,
   headUserId: r.head_user_id || undefined,

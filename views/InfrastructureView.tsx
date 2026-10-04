@@ -1046,7 +1046,7 @@ const InfrastructureView: React.FC = () => {
                     <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Coordinates</p>
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                        <MapPin size={11} className="text-[#E31E24]" />{unit.lat.toFixed(4)}, {unit.lng.toFixed(4)}
+                        <MapPin size={11} className="text-[#E31E24]" />{unit.lat == null || unit.lng == null ? 'Coordinates unavailable' : `${unit.lat.toFixed(4)}, ${unit.lng.toFixed(4)}`}
                       </p>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
@@ -1198,7 +1198,7 @@ const InfrastructureView: React.FC = () => {
                       className="w-4 h-4 accent-[#E31E24]" />
                     <span className="text-sm font-black text-slate-900 dark:text-white">{u.name}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${UNIT_TYPE_BADGE[uType].bg} ${UNIT_TYPE_BADGE[uType].text}`}>{UNIT_TYPE_BADGE[uType].label}</span>
-                    <span className="ml-auto text-[9px] font-bold text-slate-400 font-mono">{u.lat.toFixed(3)}, {u.lng.toFixed(3)}</span>
+                    <span className="ml-auto text-[9px] font-bold text-slate-400 font-mono">{u.lat == null || u.lng == null ? 'Coordinates unavailable' : `${u.lat.toFixed(3)}, ${u.lng.toFixed(3)}`}</span>
                   </label>
                 );
               })}
@@ -1226,7 +1226,7 @@ const InfrastructureView: React.FC = () => {
                       className="w-4 h-4 accent-[#E31E24]" />
                     <span className="text-sm font-black text-slate-900 dark:text-white">{u.name}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${UNIT_TYPE_BADGE[uType].bg} ${UNIT_TYPE_BADGE[uType].text}`}>{UNIT_TYPE_BADGE[uType].label}</span>
-                    <span className="ml-auto text-[9px] font-bold text-slate-400 font-mono">{u.lat.toFixed(3)}, {u.lng.toFixed(3)}</span>
+                    <span className="ml-auto text-[9px] font-bold text-slate-400 font-mono">{u.lat == null || u.lng == null ? 'Coordinates unavailable' : `${u.lat.toFixed(3)}, ${u.lng.toFixed(3)}`}</span>
                   </label>
                 );
               })}

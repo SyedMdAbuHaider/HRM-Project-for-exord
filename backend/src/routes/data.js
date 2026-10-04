@@ -25,12 +25,16 @@ const tableMap = (name) => ({
 }[name] || name);
 
 const COLUMN_MAPS = {
+  units: { lat:'latitude', lng:'longitude', radius:'radius_meters' },
   attendance: { timestamp:'occurred_at', user_id:'employee_id' },
   activity_logs: { timestamp:'created_at', user_id:'actor_id' },
   gps_logs: { timestamp:'recorded_at', user_id:'employee_id' },
   holidays: { date:'holiday_date' },
   duty_roster: { date:'duty_date', shift_start:'check_in_time', shift_end:'check_out_time', shift_label:'shift_name', user_id:'employee_id' },
   conversation_members: { user_id:'employee_id' },
+  custom_role_members: { user_id:'employee_id' },
+  leaves: { user_id:'employee_id' },
+  salaries: { user_id:'employee_id' },
   pay_scales: { role:'role_code' },
   users: { name:'full_name', full_name:'full_name', created_at:'created_at' }
 };
@@ -86,6 +90,11 @@ const selectUsers = (fields) => {
 
 const legacySelect = (table, fields) => {
   if (table === 'users') return selectUsers(fields);
+  if (table === 'custom_roles' && fields !== '*') {
+    const m = { native_role:'NULL::text', color:"COALESCE(description,'')" };
+    return fields.split(',').map(x=>x.trim()).filter(Boolean)
+      .map(k=>m[k] ? m[k]+' AS '+qi(k) : qi(k)).join(',');
+  }
   if (fields === '*') return '*';
   const maps = {
     user_permissions:{user_id:'employee_id',permission:'capability'},
@@ -137,6 +146,9 @@ const legacy = (table, row) => {
   if (!row) return row;
   const x = {...row};
   const alias=(name,source)=>{ if (!(name in x)) x[name]=x[source]; };
+  if (table==='units') {
+    alias('lat','latitude'); alias('lng','longitude'); alias('radius','radius_meters');
+  }
   if (table==='users') { alias('name','full_name'); alias('password','password_hash'); alias('employee_id','employee_code'); if(x.role_code)alias('role','role_code'); }
   if (table==='leaves') { x.user_id=x.employee_id; x.user_name=x.full_name; x.department=x.department_name; }
   if (table==='salaries') { x.user_id=x.employee_id; x.user_name=x.full_name; }
@@ -145,9 +157,13 @@ const legacy = (table, row) => {
   if (table==='attendance') { alias('user_id','employee_id'); alias('timestamp','occurred_at'); }
   if (table==='gps_logs') { alias('user_id','employee_id'); alias('timestamp','recorded_at'); }
   if (table==='conversation_members') alias('user_id','employee_id');
-  if (table==='user_permissions') { x.user_id=x.employee_id; x.permission=x.capability; }
-  if (table==='role_feature_grants') { x.role=x.role_code; x.feature_key=x.capability; }
-  if (table==='custom_role_permissions') x.feature_key=x.capability;
+  if (table==='custom_role_members') alias('user_id','employee_id');
+  if (table==='custom_roles' && !('native_role' in x)) x.native_role=null;
+  if (table==='leaves') alias('user_id','employee_id');
+  if (table==='salaries') alias('user_id','employee_id');
+  if (table==='user_permissions') { alias('user_id','employee_id'); alias('permission','capability'); }
+  if (table==='role_feature_grants') { alias('role','role_code'); alias('feature_key','capability'); }
+  if (table==='custom_role_permissions') alias('feature_key','capability');
   if (table==='unit_approvers') x.approver_user_id=x.employee_id;
   if (table==='dept_approvers') x.approver_user_id=x.employee_id;
   if (table==='weekend_work_permissions') { x.user_id=x.employee_id; x.date=x.work_date; x.reviewed_by=x.reviewed_by_name; }
