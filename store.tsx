@@ -1261,7 +1261,7 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const response = await api.post<any>('/api/v1/attendance', {
         type, timestamp, location, reason: extra?.breakType || null,
-        clientEventId, appVersion: import.meta.env.VITE_APP_VERSION || 'web',
+        clientEventId, appVersion: 'web',
       });
       const record = response?.record;
       if (!record) return { success: false, message: 'Attendance server returned no record.' };

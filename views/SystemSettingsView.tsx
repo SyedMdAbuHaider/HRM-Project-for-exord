@@ -79,6 +79,15 @@ const SystemSettingsView: React.FC = () => {
     } catch (e) { console.error('[SystemSettings] load failed', e); }
     finally { setLoading(false); }
   }, []);
+  const saveSetting = async (key: string, value: any): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await api.put('/api/v1/system-settings/' + encodeURIComponent(key), { value });
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Request failed' };
+    }
+  };
+
   const handleSaveSection = async (key: string, value: any, label: string) => {
     if (!canEdit) return;
     setSaving(true);

@@ -125,7 +125,6 @@ export async function recordAttendance({ employeeId, type, timestamp, location, 
     record = existing.rows[0];
   }
 
-  const record = rows[0];
   if (inserted && record?.is_late && type === 'CHECK_IN') {
     await db.query('UPDATE employees SET late_count=COALESCE(late_count,0)+1, updated_at=now() WHERE id=$1',[employeeId]);
   }
