@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - migration/server-owned-foundation
+      - android-final-validation
+      - production
   pull_request:
     branches:
       - migration/server-owned-foundation
