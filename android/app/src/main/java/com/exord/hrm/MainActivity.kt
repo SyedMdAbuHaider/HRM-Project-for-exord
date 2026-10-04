@@ -13,19 +13,20 @@ import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.ui.HrmViewModel
 
@@ -45,7 +46,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable fun ExordApp(app:Application){
- val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
+ val vm:HrmViewModel=remember { HrmViewModel(app) }
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn){if(s.mustChangePassword)ForcePassword(vm,s.error)else Shell(vm,s.name,s.role,app)}else Login(vm,s.loading,s.error)}}
 }
@@ -59,20 +60,74 @@ class MainActivity:ComponentActivity(){
  }
 }
 @Composable fun Login(vm:HrmViewModel,loading:Boolean,error:String?){
- Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
-  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp);Text("HRM",fontSize=42.sp,fontWeight=FontWeight.Black,color=Ink);Text("Employee & Workforce Management",color=Muted)
-  Spacer(Modifier.height(30.dp));OutlinedTextField(vm.identifier,{vm.identifier=it},label={Text("Employee ID / Email")},singleLine=true,modifier=Modifier.fillMaxWidth())
-  Spacer(Modifier.height(12.dp));OutlinedTextField(vm.password,{vm.password=it},label={Text("Password")},singleLine=true,modifier=Modifier.fillMaxWidth())
-  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=13.sp)
-  Spacer(Modifier.height(18.dp));Button(vm::login,enabled=!loading&&vm.identifier.isNotBlank()&&vm.password.isNotBlank(),modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(14.dp)){Text(if(loading)"Signing in…" else "Sign In",fontWeight=FontWeight.Bold)}
+ var identifier by rememberSaveable { mutableStateOf(vm.identifier) }
+ var password by rememberSaveable { mutableStateOf(vm.password) }
+ var passwordVisible by rememberSaveable { mutableStateOf(false) }
+ val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+ val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+ LaunchedEffect(identifier) { vm.identifier = identifier }
+ LaunchedEffect(password) { vm.password = password }
+
+ Column(
+  modifier=Modifier.fillMaxSize().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp),
+  verticalArrangement=Arrangement.Center,
+  horizontalAlignment=Alignment.CenterHorizontally
+ ){
+  Text("EXORD ONLINE",color=Red,fontWeight=FontWeight.Black,letterSpacing=2.sp)
+  Text("HRM",fontSize=42.sp,fontWeight=FontWeight.Black,color=Ink)
+  Text("Employee & Workforce Management",color=Muted)
+  Spacer(Modifier.height(30.dp))
+  OutlinedTextField(
+   value=identifier,
+   onValueChange={identifier=it},
+   label={Text("Employee ID / Email")},
+   singleLine=true,
+   enabled=!loading,
+   keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Text,imeAction=androidx.compose.ui.text.input.ImeAction.Next),
+   keyboardActions=androidx.compose.foundation.text.KeyboardActions(onNext={focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)}),
+   modifier=Modifier.fillMaxWidth()
+  )
+  Spacer(Modifier.height(12.dp))
+  OutlinedTextField(
+   value=password,
+   onValueChange={password=it},
+   label={Text("Password")},
+   singleLine=true,
+   enabled=!loading,
+   visualTransformation=if(passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+   trailingIcon={
+    IconButton(onClick={passwordVisible=!passwordVisible},enabled=!loading){
+     Text(if(passwordVisible)"Hide" else "Show",fontSize=11.sp,color=Red,fontWeight=FontWeight.Bold)
+    }
+   },
+   keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Password,imeAction=androidx.compose.ui.text.input.ImeAction.Done),
+   keyboardActions=androidx.compose.foundation.text.KeyboardActions(onDone={
+    focusManager.clearFocus(force=true)
+    keyboard?.hide()
+    if(identifier.isNotBlank() && password.isNotBlank() && !loading) vm.login()
+   }),
+   modifier=Modifier.fillMaxWidth()
+  )
+  if(error!=null)Text(error,color=MaterialTheme.colorScheme.error,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))
+  Spacer(Modifier.height(18.dp))
+  Button(
+   onClick={focusManager.clearFocus().let{keyboard?.hide(); vm.login()}},
+   enabled=!loading&&identifier.isNotBlank()&&password.isNotBlank(),
+   modifier=Modifier.fillMaxWidth().height(52.dp),
+   shape=RoundedCornerShape(14.dp)
+  ){Text(if(loading)"Signing in…" else "Sign In",fontWeight=FontWeight.Bold)}
  }
 }
 private fun nav(role:String)=when(role.uppercase()){ "EMPLOYEE"->listOf("Portal","Clock","Chat","Pay","More");"MANAGER"->listOf("Home","Team","Requests","Chat","More");"CO_ADMIN","HR"->listOf("Home","People","Requests","Chat","More");else->listOf("Home","People","Attend","Chat","More") }
 
 @Composable private fun Shell(vm:HrmViewModel,name:String,role:String,app:Application){
- var tab by remember{mutableStateOf(0)};var morePage by remember{mutableStateOf<String?>(null)};val items=nav(role)
- Scaffold(bottomBar={NavigationBar(containerColor=Color(0xE60F172A), tonalElevation=0.dp){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
-  when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p,app);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p,app);"Pay"->Payroll(vm,p);"More"->More(role,p){ f,pp-> if(f=="Notifications") Notifications(vm,pp) else Profile(vm,pp) };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
+ var tab by remember{mutableStateOf(0)}
+ var morePage by remember{mutableStateOf<String?>(null)}
+ val items=nav(role)
+ Scaffold(bottomBar={NavigationBar(containerColor=Color(0xE60F172A), tonalElevation=0.dp){items.forEachIndexed{i,x->NavigationBarItem(i==tab,{tab=i; if(x!="More") morePage=null},icon={Text(if(i==tab)"●" else "○",color=if(i==tab)Red else Muted)},label={Text(x,fontSize=11.sp,fontWeight=if(i==tab)FontWeight.Bold else FontWeight.Normal)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Red,selectedTextColor=Red,indicatorColor=Red.copy(.10f)))}}}){p->
+  if(items[tab]=="More" && morePage=="Notifications") Notifications(vm,p)
+  else if(items[tab]=="More" && morePage=="Profile") Profile(vm,p)
+  else when(items[tab]){"People","Team"->People(vm,p);"Attend","Clock"->Attendance(vm,p,app);"Requests"->Requests(vm,role,p);"Chat"->Chat(vm,p,app);"Pay"->Payroll(vm,p);"More"->More(role,p){ f->morePage=f };"Portal"->Portal(name,role,p);else->Dashboard(vm,name,role,p)}
  }
 }
 @Composable private fun Dashboard(vm:HrmViewModel,name:String,role:String,p:PaddingValues){
@@ -133,7 +188,7 @@ private fun lastKnownLocation(context:Context):Location?{
  val salaries by vm.salaries.collectAsState();LaunchedEffect(Unit){vm.loadSalaries()}
  Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("Payroll",color=Red,fontWeight=FontWeight.Bold);Text("Salary",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)){items(salaries,key={it.id}){s->Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=Card),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp)){Text(s.period?:"Salary period",fontWeight=FontWeight.Bold);Text("Base: "+(s.base_salary?:0.0),color=Muted);Text("Net: "+(s.net_salary?:0.0),fontWeight=FontWeight.Black);Text(s.period_status.orEmpty(),color=Muted,fontSize=12.sp)}}}}}
 }
-@Composable private fun More(role:String,p:PaddingValues,onSelect:(String,PaddingValues)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){TextButton({if(f=="Profile"||f=="Notifications")onSelect(f,p)},Modifier.fillMaxWidth()){Text(f,Modifier.fillMaxWidth().padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}}
+@Composable private fun More(role:String,p:PaddingValues,onSelect:(String)->Unit){val fs=when(role.uppercase()){"EMPLOYEE"->listOf("Profile","Attendance","Leave Requests","Payroll","Chat","Notifications","Settings");"MANAGER"->listOf("Team","Attendance","Requests","Duty Roster","Schedule Changes","Chat","Notifications","Settings");"CO_ADMIN","HR"->listOf("People","Attendance","Requests","Payroll","Leave Policy","Duty Roster","Chat","Broadcast","Activity","Settings");else->listOf("People","Attendance","Tracking","Payroll","Requests","Infrastructure","Security Logs","Activity","Assets","Permissions","Approval Flow","Unit Approval Config","Role Capabilities","Custom Roles","Leave Policy","Duty Replacement","Schedule Changes","Roster","Designation Admin","Broadcast","Chat","System Settings")};Column(Modifier.fillMaxSize().padding(p).padding(18.dp)){Text("More",color=Red,fontWeight=FontWeight.Bold);Text("HRM Modules",fontSize=29.sp,fontWeight=FontWeight.Black,color=Ink);Text("Role: "+role.replace('_',' '),color=Muted);Spacer(Modifier.height(12.dp));LazyColumn(verticalArrangement=Arrangement.spacedBy(7.dp)){items(fs){f->Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=Card)){TextButton({if(f=="Profile"||f=="Notifications")onSelect(f)},Modifier.fillMaxWidth()){Text(f,Modifier.fillMaxWidth().padding(16.dp),fontWeight=FontWeight.SemiBold,color=Ink)}}}}}}
 
 @Composable private fun Notifications(vm:HrmViewModel,p:PaddingValues){
  val ns by vm.notifications.collectAsState()

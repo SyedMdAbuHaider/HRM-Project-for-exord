@@ -2,11 +2,12 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
 android { namespace="com.exord.hrm"; compileSdk=36
     buildFeatures { buildConfig = true }
-    defaultConfig { applicationId="com.exord.hrm"; minSdk=26; targetSdk=36; versionCode=1; versionName="0.1.0"; buildConfigField("String","HRM_API_URL", "\"http://10.0.2.2:8081/\"") }
+    defaultConfig { applicationId="com.exord.hrm"; minSdk=26; targetSdk=36; versionCode=100; versionName="1.0.0"; val apiUrl=System.getenv("HRM_API_URL") ?: "https://admin.exord.net/"; buildConfigField("String","HRM_API_URL", "\"${apiUrl}\"" ) }
 }
 kotlin { jvmToolchain(17) }
 dependencies {
