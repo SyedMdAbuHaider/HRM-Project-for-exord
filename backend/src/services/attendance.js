@@ -103,21 +103,30 @@ export async function recordAttendance({ employeeId, type, timestamp, location, 
 
   const { rows } = await db.query(
     `INSERT INTO attendance
-      (employee_id, type, occurred_at, location, ip_address, device_id, app_version,
-       is_late, late_minutes, client_event_id, synced_at)
+      (employee_id,type,occurred_at,location,ip_address,device_id,app_version,
+       is_late,late_minutes,client_event_id,reason,synced_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
-     ON CONFLICT (employee_id, client_event_id)
-     DO UPDATE SET synced_at = now()
+     ON CONFLICT (employee_id,client_event_id) DO NOTHING
      RETURNING *`,
     [
-      employeeId, type, occurredAt, JSON.stringify({ lat, lng, accuracy }),
-      ipAddress || null, deviceId || null, appVersion || null,
-      isLate, lateMinutes, clientEventId || null, reason || null
+      employeeId,type,occurredAt,JSON.stringify({lat,lng,accuracy}),
+      ipAddress || null,deviceId || null,appVersion || null,
+      isLate,lateMinutes,clientEventId || null,reason || null
     ]
   );
 
+  let record = rows[0];
+  const inserted = Boolean(record);
+  if (!record && clientEventId) {
+    const existing = await db.query(
+      'SELECT * FROM attendance WHERE employee_id=$1 AND client_event_id=$2 LIMIT 1',
+      [employeeId,clientEventId]
+    );
+    record = existing.rows[0];
+  }
+
   const record = rows[0];
-  if (record?.is_late && type === 'CHECK_IN') {
+  if (inserted && record?.is_late && type === 'CHECK_IN') {
     await db.query('UPDATE employees SET late_count=COALESCE(late_count,0)+1, updated_at=now() WHERE id=$1',[employeeId]);
   }
   return record;
