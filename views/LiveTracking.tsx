@@ -6,6 +6,7 @@ import {
   Radio, AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
 import { Unit } from '../types';
+import { api } from '../apiClient';
 
 // ── POP Health Types ──────────────────────────────────────────────────────────
 type PopStatus = 'up' | 'down' | 'unknown' | 'checking';
@@ -33,12 +34,9 @@ const probeUnit = async (unit: Unit): Promise<{ alive: boolean; latencyMs: numbe
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    await fetch('/api/v1/probe/ping', {
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
+    const host = unit.snmpConfig?.host;
+    if (!host) return { alive: false, latencyMs: 0 };
+    await api.post('/api/v1/probe/ping', { host });
     clearTimeout(timer);
     return { alive: true, latencyMs: Date.now() - start };
   } catch (err: any) {
