@@ -14,7 +14,8 @@ attendanceRouter.post('/', requireAuth, async (req, res, next) => {
       ipAddress: req.ip,
       deviceId: req.body?.deviceId,
       appVersion: req.body?.appVersion,
-      clientEventId: req.body?.clientEventId
+      clientEventId: req.body?.clientEventId,
+      reason: req.body?.reason
     });
     res.status(201).json({ record });
   } catch (error) {

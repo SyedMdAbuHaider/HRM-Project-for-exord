@@ -30,7 +30,7 @@ function isAllowedIp(ip, cidrs) {
   return (cidrs || []).some(cidr => ipInCidr(ip, cidr));
 }
 
-export async function recordAttendance({ employeeId, type, timestamp, location, ipAddress, deviceId, appVersion, clientEventId }) {
+export async function recordAttendance({ employeeId, type, timestamp, location, ipAddress, deviceId, appVersion, clientEventId, reason }) {
   const { rows: employees } = await db.query(
     `SELECT e.id, e.status, e.weekend_days, e.unit_id,
             u.latitude, u.longitude, u.radius_meters, u.allowed_ip_cidrs
@@ -71,29 +71,33 @@ export async function recordAttendance({ employeeId, type, timestamp, location, 
     throw Object.assign(new Error('Invalid attendance timestamp'), { status: 400 });
   }
 
+  const localDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(occurredAt);
+
+  const { rows: rosterRows } = await db.query(
+    `SELECT check_in_time FROM duty_roster
+     WHERE employee_id=$1 AND duty_date=$2
+     ORDER BY created_at DESC LIMIT 1`,
+    [employeeId, localDate]
+  );
   const { rows: policyRows } = await db.query(
-    `SELECT check_in_time, grace_minutes
-     FROM attendance_policy
-     WHERE active = true
-     ORDER BY created_at DESC
-     LIMIT 1`
+    `SELECT check_in_time, grace_minutes FROM attendance_policy
+     WHERE active=true ORDER BY created_at DESC LIMIT 1`
   );
   const policy = policyRows[0];
+  const roster = rosterRows[0];
   let isLate = false;
   let lateMinutes = 0;
 
-  if (type === 'CHECK_IN' && policy) {
+  if (type === 'CHECK_IN' && (roster?.check_in_time || policy)) {
     const local = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Dhaka',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+      timeZone:'Asia/Dhaka', hour:'2-digit', minute:'2-digit', hour12:false
     }).format(occurredAt);
-    const [h, m] = local.split(':').map(Number);
-    const [ph, pm] = String(policy.check_in_time).slice(0, 5).split(':').map(Number);
-    const actual = h * 60 + m;
-    const scheduled = ph * 60 + pm;
-    lateMinutes = Math.max(0, actual - scheduled - Number(policy.grace_minutes || 0));
+    const [h,m] = local.split(':').map(Number);
+    const scheduledText = roster?.check_in_time || policy.check_in_time;
+    const [ph,pm] = String(scheduledText).slice(0,5).split(':').map(Number);
+    lateMinutes = Math.max(0, (h*60+m) - (ph*60+pm) - Number(policy?.grace_minutes || 0));
     isLate = lateMinutes > 0;
   }
 
@@ -101,16 +105,20 @@ export async function recordAttendance({ employeeId, type, timestamp, location, 
     `INSERT INTO attendance
       (employee_id, type, occurred_at, location, ip_address, device_id, app_version,
        is_late, late_minutes, client_event_id, synced_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now())
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
      ON CONFLICT (employee_id, client_event_id)
      DO UPDATE SET synced_at = now()
      RETURNING *`,
     [
       employeeId, type, occurredAt, JSON.stringify({ lat, lng, accuracy }),
       ipAddress || null, deviceId || null, appVersion || null,
-      isLate, lateMinutes, clientEventId || null
+      isLate, lateMinutes, clientEventId || null, reason || null
     ]
   );
 
-  return rows[0];
+  const record = rows[0];
+  if (record?.is_late && type === 'CHECK_IN') {
+    await db.query('UPDATE employees SET late_count=COALESCE(late_count,0)+1, updated_at=now() WHERE id=$1',[employeeId]);
+  }
+  return record;
 }

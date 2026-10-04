@@ -10,8 +10,13 @@ import { employeesRouter } from './routes/employees.js';
 import { hrmRouter } from './routes/hrm.js';
 import { dataRouter } from './routes/data.js';
 import { filesRouter } from './routes/files.js';
+import { systemSettingsRouter } from './routes/systemSettings.js';
+import { requireAuth } from './auth/middleware.js';
+import probeRouter from './routes/probe.js';
+import { emailRouter } from './routes/email.js';
 
 export const app = express();
+app.set('trust proxy', 1);
 
 app.disable('x-powered-by');
 app.use(helmet());
@@ -43,6 +48,9 @@ app.use('/api/v1/attendance', attendanceRouter);
 app.use('/api/v1/employees', employeesRouter);
 app.use('/api/v1/hrm', hrmRouter);
 app.use('/api/v1/data', dataRouter);
+app.use('/api/v1/system-settings', systemSettingsRouter);
+app.use('/api/v1/probe', requireAuth, probeRouter);
+app.use('/api/v1/email', emailRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('[api]', err);
