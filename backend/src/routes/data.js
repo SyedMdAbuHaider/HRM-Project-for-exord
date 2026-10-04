@@ -24,6 +24,25 @@ const tableMap = (name) => ({
   dept_approvers:'department_approvers'
 }[name] || name);
 
+const COLUMN_MAPS = {
+  attendance: { timestamp:'occurred_at', user_id:'employee_id' },
+  activity_logs: { timestamp:'created_at', user_id:'actor_id' },
+  gps_logs: { timestamp:'recorded_at', user_id:'employee_id' },
+  holidays: { date:'holiday_date' },
+  duty_roster: { date:'duty_date', shift_start:'check_in_time', shift_end:'check_out_time', shift_label:'shift_name', user_id:'employee_id' },
+  conversation_members: { user_id:'employee_id' },
+  pay_scales: { role:'role_code' },
+  users: { name:'full_name', full_name:'full_name', created_at:'created_at' }
+};
+
+const columnExpression = (table, column) => {
+  const physical = COLUMN_MAPS[table]?.[column] || column;
+  if (table === 'users') return ({
+    id:'e.id', email:'e.email', full_name:'e.full_name', created_at:'e.created_at'
+  }[physical] || qi(physical));
+  return qi(physical);
+};
+
 const qi = (s) => {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(s)) throw Object.assign(new Error('Invalid identifier'), {status:400});
   return '"' + s + '"';
@@ -67,6 +86,7 @@ const selectUsers = (fields) => {
 
 const legacySelect = (table, fields) => {
   if (table === 'users') return selectUsers(fields);
+  if (fields === '*') return '*';
   const maps = {
     user_permissions:{user_id:'employee_id',permission:'capability'},
     role_feature_grants:{role:'role_code',feature_key:'capability'},
@@ -85,6 +105,10 @@ const legacySelect = (table, fields) => {
   if (table === 'custom_roles' && fields === 'id, name, color') {
     return "id,name,COALESCE(description,'') AS color";
   }
+  if (COLUMN_MAPS[table]) {
+    return fields.split(',').map(x=>x.trim()).filter(Boolean)
+      .map(k=>columnExpression(table,k)+' AS '+qi(k)).join(',');
+  }
   return fields;
 };
 
@@ -94,11 +118,13 @@ const bodyMap = (table, body) => {
   if (table==='users') { ren('name','full_name'); ren('password','password_hash'); ren('employee_id','employee_code'); }
   if (table==='leaves') ren('user_id','employee_id');
   if (table==='attendance') { ren('user_id','employee_id'); ren('timestamp','occurred_at'); }
-  if (table==='gps_logs') ren('user_id','employee_id');
+  if (table==='gps_logs') { ren('user_id','employee_id'); ren('timestamp','recorded_at'); }
   if (table==='activity_logs') { ren('user_id','actor_id'); ren('timestamp','created_at'); }
   if (table==='weekend_work_permissions') { ren('user_id','employee_id'); ren('date','work_date'); ren('reviewed_by','reviewed_by_name'); }
   if (table==='duty_roster') { ren('user_id','employee_id'); ren('date','duty_date'); ren('shift_start','check_in_time'); ren('shift_end','check_out_time'); ren('shift_label','shift_name'); ren('created_by','created_by_name'); }
   if (table==='holidays') ren('date','holiday_date');
+  if (table==='conversation_members') ren('user_id','employee_id');
+  if (table==='pay_scales') ren('role','role_code');
   if (table==='user_permissions') { ren('user_id','employee_id'); ren('permission','capability'); }
   if (table==='role_feature_grants') { ren('role','role_code'); ren('feature_key','capability'); }
   if (table==='custom_role_permissions') ren('feature_key','capability');
@@ -110,20 +136,23 @@ const bodyMap = (table, body) => {
 const legacy = (table, row) => {
   if (!row) return row;
   const x = {...row};
-  if (table==='users') { x.name=x.full_name; x.password=x.password_hash; x.employee_id=x.employee_code; if(x.role_code)x.role=x.role_code; }
+  const alias=(name,source)=>{ if (!(name in x)) x[name]=x[source]; };
+  if (table==='users') { alias('name','full_name'); alias('password','password_hash'); alias('employee_id','employee_code'); if(x.role_code)alias('role','role_code'); }
   if (table==='leaves') { x.user_id=x.employee_id; x.user_name=x.full_name; x.department=x.department_name; }
   if (table==='salaries') { x.user_id=x.employee_id; x.user_name=x.full_name; }
-  if (table==='activity_logs') { x.user_id=x.actor_id; x.timestamp=x.created_at; }
-  if (table==='attendance') { x.user_id=x.employee_id; x.timestamp=x.occurred_at; }
-  if (table==='gps_logs') x.user_id=x.employee_id;
+  if (table==='pay_scales') alias('role','role_code');
+  if (table==='activity_logs') { alias('user_id','actor_id'); alias('timestamp','created_at'); }
+  if (table==='attendance') { alias('user_id','employee_id'); alias('timestamp','occurred_at'); }
+  if (table==='gps_logs') { alias('user_id','employee_id'); alias('timestamp','recorded_at'); }
+  if (table==='conversation_members') alias('user_id','employee_id');
   if (table==='user_permissions') { x.user_id=x.employee_id; x.permission=x.capability; }
   if (table==='role_feature_grants') { x.role=x.role_code; x.feature_key=x.capability; }
   if (table==='custom_role_permissions') x.feature_key=x.capability;
   if (table==='unit_approvers') x.approver_user_id=x.employee_id;
   if (table==='dept_approvers') x.approver_user_id=x.employee_id;
   if (table==='weekend_work_permissions') { x.user_id=x.employee_id; x.date=x.work_date; x.reviewed_by=x.reviewed_by_name; }
-  if (table==='duty_roster') { x.user_id=x.employee_id; x.date=x.duty_date; x.shift_start=x.check_in_time; x.shift_end=x.check_out_time; x.shift_label=x.shift_name; x.created_by=x.created_by_name; }
-  if (table==='holidays') x.date=x.holiday_date;
+  if (table==='duty_roster') { alias('user_id','employee_id'); alias('date','duty_date'); alias('shift_start','check_in_time'); alias('shift_end','check_out_time'); alias('shift_label','shift_name'); alias('created_by','created_by_name'); }
+  if (table==='holidays') alias('date','holiday_date');
   return x;
 };
 
@@ -155,9 +184,7 @@ dataRouter.all('/:table', requireAuth, async (req,res,next) => {
         const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
         if (!m) continue;
         const op=m[1], col=m[2];
-        const mapped=table==='users'
-          ? ({id:'e.id',email:'e.email',name:'e.full_name',full_name:'e.full_name'}[col] || qi(col))
-          : qi(col);
+        const mapped=columnExpression(table,col);
         if (op==='in') { where.push(mapped+'=ANY($'+(vals.length+1)+')'); vals.push(String(v).split(',')); }
         else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
         else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(vals.length+1)); vals.push(v); }
@@ -172,9 +199,11 @@ dataRouter.all('/:table', requireAuth, async (req,res,next) => {
       if (table==='role_capabilities' && /^role,\s*capabilities$/.test(String(req.query.select||''))) sql+=' GROUP BY role_code';
 
       if (req.query.order) {
-        const p=String(req.query.order).split('.');
-        const col=table==='users' && p[0]==='name' ? 'e.full_name' : qi(p[0]);
-        sql+=' ORDER BY '+col+' '+(p[1]==='desc'?'DESC':'ASC');
+        const order=String(req.query.order).split(',').map(part=>{
+          const [column,direction]=part.trim().split('.');
+          return columnExpression(table,column)+' '+(direction?.toLowerCase()==='desc'?'DESC':'ASC');
+        }).join(', ');
+        sql+=' ORDER BY '+order;
       }
       sql+=' LIMIT '+Math.min(Math.max(Number(req.query.limit||500),1),1000);
       const out=await db.query(sql,vals);
@@ -185,7 +214,7 @@ dataRouter.all('/:table', requireAuth, async (req,res,next) => {
     for (const [k,v] of Object.entries(req.query)) {
       const m=k.match(/^(eq|neq|gt|gte|lt|lte|ilike|is|in)\[(.+)\]$/);
       if (!m) continue;
-      const op=m[1],col=m[2],mapped=qi(col);
+      const op=m[1],col=m[2],mapped=columnExpression(table,col);
       if (op==='in') { where.push(mapped+'=ANY($'+(filterVals.length+1)+')'); filterVals.push(String(v).split(',')); }
       else if (op==='is' && String(v)==='null') where.push(mapped+' IS NULL');
       else { where.push(mapped+' '+({eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',ilike:'ILIKE'})[op]+' $'+(filterVals.length+1)); filterVals.push(v); }
