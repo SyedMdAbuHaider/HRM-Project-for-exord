@@ -392,7 +392,7 @@ const BroadcastView: React.FC = () => {
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-hidden">
                 {recipients.slice(0, 6).map(u => (
                   <span key={u.id} className="flex items-center gap-1 px-2 py-0.5 bg-white dark:bg-slate-700 rounded-lg text-[9px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
-                    {u.name.split(' ')[0]}
+                    {String(u.name || 'User').split(' ')[0]}
                   </span>
                 ))}
                 {recipients.length > 6 && (
