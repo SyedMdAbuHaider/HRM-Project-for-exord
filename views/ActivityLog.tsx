@@ -77,7 +77,7 @@ const ActivityLogView: React.FC = () => {
     const rows = filtered.map(l => [
       new Date(l.timestamp).toLocaleString(),
       l.userName, l.userId, l.action, l.category, l.severity,
-      `"${l.details.replace(/"/g, "'")}"`,
+      `"${(l.details || '').replace(/"/g, "'")}"`,
     ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
