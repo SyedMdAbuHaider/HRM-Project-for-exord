@@ -409,7 +409,7 @@ const mapUser = (r: any): User => ({
   id: safeString(r.id),
   employeeCode: safeString(r.employee_code || r.employee_id || r.employeeCode || r.id),
   name: safeString(r.name || r.full_name, 'Unknown Employee'), email: safeString(r.email),
-  role: (r.role || UserRole.EMPLOYEE) as UserRole, department: safeString(r.department), baseSalary: r.base_salary,
+  role: (r.role || UserRole.EMPLOYEE) as UserRole, department: safeString(r.department || r.department_name || r.departmentName), baseSalary: toFiniteNumber(r.base_salary, 0) ?? 0,
   deviceId: r.device_id, unitLocation: { lat: r.unit_location_lat || 0, lng: r.unit_location_lng || 0 },
   fatherName: r.father_name, motherName: r.mother_name, nid: r.nid,
   presentAddress: r.present_address, permanentAddress: r.permanent_address,
