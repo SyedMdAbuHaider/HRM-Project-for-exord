@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.exord.hrm.data.model.Employee
 import com.exord.hrm.ui.HrmViewModel
 
@@ -45,7 +44,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable fun ExordApp(app:Application){
- val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
+ val vm:HrmViewModel=remember { HrmViewModel(app) }
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn){if(s.mustChangePassword)ForcePassword(vm,s.error)else Shell(vm,s.name,s.role,app)}else Login(vm,s.loading,s.error)}}
 }
