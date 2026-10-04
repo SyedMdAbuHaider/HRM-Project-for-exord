@@ -365,12 +365,13 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
     return (
       user.name.toLowerCase().includes(term) ||
       user.email.toLowerCase().includes(term) ||
-      user.id.toLowerCase().includes(term)
+      user.id.toLowerCase().includes(term) ||
+      (user.employeeCode || '').toLowerCase().includes(term)
     );
   }).sort((a, b) => {
     // Sort by numeric part of ID: E0001 < E0002 etc.
-    const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
-    const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+    const numA = parseInt((a.employeeCode || a.id).replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt((b.employeeCode || b.id).replace(/\D/g, ''), 10) || 0;
     return numA - numB;
   });
 
@@ -704,7 +705,7 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
                     {employee.role === UserRole.ADMIN && <Shield size={11} className="text-[#E31E24] flex-shrink-0"/>}
                   </p>
 
-                  <span className="text-[9px] font-black text-[#E31E24] bg-red-50 dark:bg-red-900/10 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-900/30 flex-shrink-0">{employee.id}</span>
+                  <span className="text-[9px] font-black text-[#E31E24] bg-red-50 dark:bg-red-900/10 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-900/30 flex-shrink-0">{employee.employeeCode || employee.id}</span>
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   {employee.joinDate && (
@@ -727,7 +728,7 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
                 );
               })()}
               <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 uppercase tracking-widest rounded-lg border border-slate-200 dark:border-slate-700">{employee.department}</span>
-              <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800/50 text-[9px] font-mono font-bold text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700">{employee.id}</span>
+              <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800/50 text-[9px] font-mono font-bold text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700">{employee.employeeCode || employee.id}</span>
               {canSeeSensitive && <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/10 text-[9px] font-black text-emerald-600 rounded-lg border border-emerald-100 dark:border-emerald-900/30">{formatCurrency(employee.baseSalary)}</span>}
             </div>
             <div className="flex items-center gap-1.5">
@@ -797,7 +798,7 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
                           {employee.name}
                           {employee.role === UserRole.ADMIN && <Shield size={11} className="text-[#E31E24]"/>}
 
-                          <span className="text-[9px] font-black text-[#E31E24] bg-red-50 dark:bg-red-900/10 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-900/30">{employee.id}</span>
+                          <span className="text-[9px] font-black text-[#E31E24] bg-red-50 dark:bg-red-900/10 px-1.5 py-0.5 rounded-md border border-red-100 dark:border-red-900/30">{employee.employeeCode || employee.id}</span>
                         </div>
                         <div className="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5"><Mail size={10} className="opacity-60"/>{employee.email}</div>
                         {employee.joinDate && (
@@ -822,7 +823,7 @@ const WorkforceView: React.FC<Props> = ({ onNavigate }) => {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-4"><span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{employee.id}</span></td>
+                  <td className="px-4 py-4"><span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-gray-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{employee.employeeCode || employee.id}</span></td>
                   {canSeeSensitive && (
                     <td className="px-4 py-4"><div className="flex items-center gap-1.5 text-slate-900 dark:text-white font-black text-sm"><DollarSign size={14} className="text-emerald-500"/>{formatCurrency(employee.baseSalary)}</div></td>
                   )}
