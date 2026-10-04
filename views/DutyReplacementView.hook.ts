@@ -22,6 +22,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '../apiClient';
 import { supabase } from '../serverOwnedClient';
 import { useHRM } from '../store';
 import { DutySchedule } from '../types';
@@ -211,7 +212,7 @@ async function sendEmail(
       ? `<tr style="background:#eff6ff;"><td style="padding:10px 14px;font-weight:900;color:#3b82f6;font-size:10px;text-transform:uppercase;letter-spacing:.1em;">Type</td><td style="padding:10px 14px;font-weight:700;color:#1d4ed8;">Shift Swap — both employees working, different hours</td></tr>`
       : `<tr style="background:#f0fdf4;"><td style="padding:10px 14px;font-weight:900;color:#16a34a;font-size:10px;text-transform:uppercase;letter-spacing:.1em;">Type</td><td style="padding:10px 14px;font-weight:700;color:#15803d;">Full Leave Cover</td></tr>`;
 
-    await supabase.functions.invoke('send-email', {
+    await api.post('/api/v1/email/send', {
       body: {
         to,
         subject,

@@ -19,6 +19,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '../apiClient';
 import { supabase } from '../serverOwnedClient';
 import { useHRM } from '../store';
 import { UserRole, DutySchedule } from '../types';
@@ -164,7 +165,7 @@ async function sendSwapEmail(
   try {
     const startFmt = new Date(swap.startDate).toLocaleDateString('en-BD', { day: 'numeric', month: 'short', year: 'numeric' });
     const endFmt   = new Date(swap.endDate).toLocaleDateString('en-BD',   { day: 'numeric', month: 'short', year: 'numeric' });
-    await supabase.functions.invoke('send-email', {
+    await api.post('/api/v1/email/send', {
       body: {
         to,
         subject: `[Exord Online] Duty Swap ${statusLabel} — ${startFmt} to ${endFmt}`,

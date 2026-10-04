@@ -15,23 +15,6 @@ const _aqDone = (qid: string) => _aqSave(_aqGet().filter((i: any) => i._qid !== 
 const _aqRetry= (qid: string) => _aqSave(_aqGet().map((i: any) => i._qid === qid ? { ...i, _retries: i._retries + 1 } : i));
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Local PostgreSQL mirror (dual-write backup) ───────────────────────────────
-const LOCAL_API     = 'http://127.0.0.1:3002';
-const LOCAL_API_KEY = 'exord-local-mirror-k9x2m7p4';
-const _mirrorAttendance = async (record: Record<string, any>): Promise<void> => {
-  try {
-    await fetch('/mirror/attendance', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': LOCAL_API_KEY },
-      body:    JSON.stringify(record),
-    });
-  } catch {
-    // Mirror failure is silent — Supabase is the source of truth
-  }
-};
-// ─────────────────────────────────────────────────────────────────────────────
-
-
 import { resolveDesignationFromSalary, getTierIndex } from './designationConstants';
 import {
   User, UserRole, AttendanceRecord, LeaveRequest, LoanRequest, SalaryRecord,
@@ -838,28 +821,18 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ── Flush offline attendance queue when internet reconnects ──────────────
   const flushOfflineQueue = useCallback(async () => {
     if (!navigator.onLine) return;
-    const queue = _aqGet();
-    if (!queue.length) return;
-    for (const item of queue) {
+    for (const item of _aqGet()) {
       if ((item._retries || 0) >= 5) continue;
       try {
-        const { data: synced, error } = await supabase
-          .from('attendance')
-          .insert({ user_id: item.userId, type: item.type, status: 'SUCCESS',
-                    timestamp: item.timestamp, location: item.location ?? null,
-                    ip_address: item.ipAddress ?? '', source: 'offline_queue' })
-          .select().single();
-        if (error) throw error;
+        const response = await api.post<any>('/api/v1/attendance', {
+          type: item.type, timestamp: item.timestamp, location: item.location ?? null,
+          clientEventId: item._qid, reason: item.breakType ?? null,
+        });
         _aqDone(item._qid);
-        if (synced) setAttendance(prev => [synced, ...prev]);
-        // Mirror synced offline record to local DB too
-        _mirrorAttendance({ user_id: item.userId, type: item.type, status: 'SUCCESS',
-          timestamp: item.timestamp, location: item.location ?? null,
-          ip_address: item.ipAddress ?? '', source: 'offline_queue' });
+        if (response?.record) setAttendance(prev => [mapAttendance(response.record), ...prev]);
       } catch { _aqRetry(item._qid); }
     }
   }, []);
-
   useEffect(() => {
     window.addEventListener('online', flushOfflineQueue);
     flushOfflineQueue(); // flush any leftover from previous session
@@ -1266,76 +1239,38 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): Promise<{ success: boolean; message: string; isLate?: boolean; lateMinutes?: number }> => {
     if (!currentUser) return { success: false, message: 'Auth Required.' };
 
-    // ── Late calculation (CHECK_IN only) ──────────────────────────────────────
-    let isLate = false;
-    let lateMinutes = 0;
+    let isLate = false, lateMinutes = 0;
     if (type === 'CHECK_IN') {
-      // If a Duty Roster entry exists for this employee today, use its shift
-      // check-in time instead of the default duty schedule. This prevents a
-      // wrong late penalty when an employee is on an evening/night roster shift.
-      const todayDateStr = dhakaTodayStr();
-      const todayRosterEntry = dutyRoster.find(
-        r => r.userId === currentUser.id && r.date === todayDateStr
-      );
+      const roster = dutyRoster.find(r => r.userId === currentUser.id && r.date === dhakaTodayStr());
       let schedule = currentUser.dutySchedule || DEFAULT_DUTY_SCHEDULE;
-      if (todayRosterEntry && todayRosterEntry.checkInTime) {
-        schedule = {
-          ...schedule,
-          checkInTime: todayRosterEntry.checkInTime,
-          checkOutTime: todayRosterEntry.checkOutTime || schedule.checkOutTime,
-        };
-      }
+      if (roster?.checkInTime) schedule = { ...schedule, checkInTime: roster.checkInTime, checkOutTime: roster.checkOutTime || schedule.checkOutTime };
       const lateInfo = getLateInfo(schedule);
-      isLate = lateInfo.isLate;
-      lateMinutes = lateInfo.lateMinutes;
+      isLate = lateInfo.isLate; lateMinutes = lateInfo.lateMinutes;
     }
 
-    const row = {
-      id: genId('ATT'), user_id: currentUser.id,
-      timestamp: dhakaISOString(),
-      type, lat, lng, accuracy, ip_address: ip, status: 'SUCCESS',
-      is_late: isLate,
-      late_minutes: lateMinutes,
-      ...(extra?.breakType ? { reason: extra.breakType } : {}),
-    };
-    // ── OFFLINE: queue if no internet ───────────────────────────────────────
+    const timestamp = dhakaISOString();
+    const location = { lat, lng, accuracy };
+    const clientEventId = crypto.randomUUID();
+
     if (!navigator.onLine) {
-      _aqAdd({ userId: row.user_id, type, timestamp: row.timestamp, location: (row.lat != null && row.lng != null) ? { lat: row.lat, lng: row.lng, accuracy: row.accuracy ?? 0 } : null, ipAddress: row.ip_address ?? '' });
-      const localRec = { ...row, id: crypto.randomUUID(), userId: row.user_id, status: 'SUCCESS' as const };
-      setAttendance(prev => [localRec as any, ...prev]);
-      return { success: true, message: '⚡ Saved offline — will sync when connected.', isLate: false, lateMinutes: 0 };
-    }
-    // ── ONLINE: insert to Supabase + update local state immediately ──────────
-    const { data: inserted, error } = await supabase.from('attendance').insert(row).select().single();
-    if (error) return { success: false, message: error.message };
-    if (inserted) setAttendance(prev => [inserted, ...prev]);
-    // ── Dual-write: mirror to local PostgreSQL (fire-and-forget) ────────────
-    _mirrorAttendance({
-      user_id:      row.user_id,
-      type,
-      status:       'SUCCESS',
-      timestamp:    row.timestamp,
-      location:     (inserted?.lat && inserted?.lng) ? { lat: inserted.lat, lng: inserted.lng, accuracy: inserted.accuracy ?? 0 }
-                    : (row.lat && row.lng) ? { lat: row.lat, lng: row.lng, accuracy: row.accuracy ?? 0 } : null,
-      ip_address:   row.ip_address ?? '',
-      is_late:      row.is_late ?? false,
-      late_minutes: row.late_minutes ?? 0,
-      reason:       row.reason ?? null,
-      source:       'live',
-    });
-
-    // ── Increment late_count on user if late ───────────────────────────────────
-    if (isLate && type === 'CHECK_IN') {
-      const newCount = (currentUser.lateCount || 0) + 1;
-      await supabase.from('users').update({ late_count: newCount }).eq('id', currentUser.id);
-      setUsers(p => p.map(u => u.id === currentUser.id ? { ...u, lateCount: newCount } : u));
-      setCurrentUser(p => p ? { ...p, lateCount: newCount } : null);
+      _aqAdd({ userId: currentUser.id, type, timestamp, location, ipAddress: ip });
+      setAttendance(prev => [{ id: clientEventId, user_id: currentUser.id, timestamp, type, lat, lng, accuracy, ip_address: ip, status: 'SUCCESS', is_late: isLate, late_minutes: lateMinutes, reason: extra?.breakType || null } as any, ...prev]);
+      return { success: true, message: '⚡ Saved offline — will sync when connected.', isLate, lateMinutes };
     }
 
-    setAttendance(p => [mapAttendance(row), ...p]);
-    return { success: true, message: '', isLate, lateMinutes };
-  }, [currentUser]);
-
+    try {
+      const response = await api.post<any>('/api/v1/attendance', {
+        type, timestamp, location, reason: extra?.breakType || null,
+        clientEventId, appVersion: import.meta.env.VITE_APP_VERSION || 'web',
+      });
+      const record = response?.record;
+      if (!record) return { success: false, message: 'Attendance server returned no record.' };
+      setAttendance(prev => [mapAttendance(record), ...prev]);
+      return { success: true, message: '', isLate: Boolean(record.is_late), lateMinutes: Number(record.late_minutes || 0) };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Attendance request failed.' };
+    }
+  }, [currentUser, dutyRoster]);
   const checkIn = useCallback(async (lat: number, lng: number, accuracy: number, ip: string) => {
     if (!currentUser) return { success: false, message: 'Auth Required.' };
     const todayRecs = attendance.filter(a => a.userId === currentUser.id && isSameDhakaDay(a.timestamp));

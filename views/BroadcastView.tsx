@@ -102,7 +102,7 @@ const BroadcastView: React.FC = () => {
         .map(u => ({ email: u.email, name: u.name }));
       if (emailList.length > 0) {
         try {
-          const res = await fetch('/email/broadcast', {
+          const res = await fetch('/api/v1/email/broadcast', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

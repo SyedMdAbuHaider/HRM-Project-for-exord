@@ -90,7 +90,7 @@ const defaultProbeResult = (): PopProbeResult => ({
 // ── Probe API calls ───────────────────────────────────────────────────────────
 const probePing = async (host: string): Promise<PopProbeResult['ping']> => {
   try {
-    const res = await fetch('/probe/ping', {
+    const res = await fetch('/api/v1/probe/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ host }),
@@ -115,7 +115,7 @@ const probePing = async (host: string): Promise<PopProbeResult['ping']> => {
 
 const probeSnmp = async (config: SnmpConfig): Promise<PopProbeResult['snmp']> => {
   try {
-    const res = await fetch('/probe/snmp', {
+    const res = await fetch('/api/v1/probe/snmp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ host: config.host, community: config.community, port: config.port || 161, oid: config.oid || '1.3.6.1.2.1.1.3.0' }),
@@ -142,7 +142,7 @@ const probeUnit = async (unit: Unit): Promise<PopProbeResult> => {
 
 const probeSnmpDetail = async (config: SnmpConfig): Promise<SnmpDetailResult> => {
   try {
-    const res = await fetch('/probe/snmp/detail', {
+    const res = await fetch('/api/v1/probe/snmp/detail', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ host: config.host, community: config.community, port: config.port || 161 }),

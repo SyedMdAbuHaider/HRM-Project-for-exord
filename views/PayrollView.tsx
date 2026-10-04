@@ -9,6 +9,7 @@ import {
   Layers, FileText, Printer
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
+import { api } from '../apiClient';
 
 // ─── Salary Calculation Engine ─────────────────────────────────────────────
 interface SalaryCalcInput {
@@ -68,17 +69,15 @@ const PayrollView: React.FC = () => {
   const [pfRateSaving, setPfRateSaving] = useState(false);
   const [showPfSettings, setShowPfSettings] = useState(false);
 
-  // Load PF rate from system_settings on mount
+  // Load PF rate from server-owned settings.
   React.useEffect(() => {
     (async () => {
       try {
-        const { supabase } = await import('../supabaseClient');
-        const { data } = await (supabase as any).from('system_settings').select('value').eq('key', 'provident_fund_rate').single();
-        if (data?.value) {
-          const rate = parseFloat(JSON.parse(data.value));
-          if (!isNaN(rate)) { setPfRate(rate / 100); setPfRateInput(String(rate)); }
-        }
-      } catch { /* use default */ }
+        const result = await api.get<{settings:any[]}>('/api/v1/system-settings?keys=provident_fund_rate');
+        const raw = result.settings?.[0]?.value;
+        const rate = Number(typeof raw === 'string' ? JSON.parse(raw) : raw);
+        if (Number.isFinite(rate)) { setPfRate(rate / 100); setPfRateInput(String(rate)); }
+      } catch {}
     })();
   }, []);
 
@@ -190,17 +189,16 @@ const PayrollView: React.FC = () => {
   // ── Save PF rate to system_settings (Developer only) ─────────────────────
   const handleSavePfRate = async () => {
     const rate = parseFloat(pfRateInput);
-    if (isNaN(rate) || rate < 0 || rate > 100) return;
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) return;
     setPfRateSaving(true);
     try {
-      const { supabase } = await import('../supabaseClient');
-      await (supabase as any).from('system_settings')
-        .upsert({ key: 'provident_fund_rate', value: JSON.stringify(rate) }, { onConflict: 'key' });
+      await api.put('/api/v1/system-settings/provident_fund_rate', { value: rate });
       setPfRate(rate / 100);
-    } catch { /* ignore */ }
+    } catch {}
     setPfRateSaving(false);
     setShowPfSettings(false);
   };
+
 
   // ── Resolve custom::uuid role to a display designation ───────────────────
   const resolveDesignation = (user: typeof users[0]): string => {
@@ -302,7 +300,7 @@ const PayrollView: React.FC = () => {
     let emailNote = '';
     if (recipientUser?.email) {
       try {
-        const res = await fetch('/email/salary-slip', {
+        const res = await fetch('/api/v1/email/salary-slip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -345,8 +343,6 @@ const PayrollView: React.FC = () => {
     setBulkSending(true);
     setBulkResult(null);
     let sent = 0; let failed = 0; const errors: string[] = [];
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
     for (const sal of targets) {
       const emp = users.find(u => u.id === sal.userId);
       if (!emp?.email) { errors.push(`${sal.userName}: no email`); failed++; continue; }
@@ -356,9 +352,9 @@ const PayrollView: React.FC = () => {
       const lateRounded = Math.floor(lateCount / 3);
       const lateDeduction = Math.round(dailySalary * lateRounded);
       try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/send-salary-slip-email`, {
+        const res = await fetch('/api/v1/email/salary-slip', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipientEmail: emp.email, recipientName: sal.userName,
             period: `${sal.month} ${sal.year}`,

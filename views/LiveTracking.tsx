@@ -33,7 +33,7 @@ const probeUnit = async (unit: Unit): Promise<{ alive: boolean; latencyMs: numbe
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    await fetch(`/pop-probe/${unit.id}/`, {
+    await fetch('/api/v1/probe/ping', {
       method: 'HEAD',
       mode: 'no-cors',
       cache: 'no-store',

@@ -2,13 +2,13 @@
  * SystemSettingsView.tsx
  * Manage allowed IP subnets and CORS origins from the admin UI.
  * Accessible by DEVELOPER and ADMIN only.
- * Settings are stored in Supabase table `system_settings` (key/value).
+ * Settings are stored in the server-owned HRM database.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHRM } from '../store';
 import { UserRole } from '../types';
-import { supabase } from '../supabaseClient';
+import { api } from '../apiClient';
 import {
   Settings, Globe, Network, Plus, Trash2, Save,
   Shield, RefreshCw, CheckCircle, AlertCircle,
@@ -20,7 +20,7 @@ const labelCls = "text-[10px] font-black uppercase tracking-widest text-slate-40
 
 interface SystemSetting {
   key: string;
-  value: string;
+  value: any;
   updated_by: string;
   updated_at: string;
 }
@@ -61,64 +61,24 @@ const SystemSettingsView: React.FC = () => {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('system_settings')
-        .select('*')
-        .in('key', ['allowed_ip_subnets', 'allowed_origins', 'smtp_config']);
-      if (data) {
-        data.forEach((row: SystemSetting) => {
-          try {
-            const parsed = JSON.parse(row.value);
-            if (row.key === 'allowed_ip_subnets') setIpSubnets(parsed);
-            if (row.key === 'allowed_origins')    setOrigins(parsed);
-            if (row.key === 'smtp_config') {
-              if (parsed.host)     setSmtpHost(parsed.host);
-              if (parsed.port)     setSmtpPort(String(parsed.port));
-              if (parsed.user)     setSmtpUser(parsed.user);
-              if (parsed.pass)     setSmtpPass(parsed.pass);
-              if (parsed.from)     setSmtpFrom(parsed.from);
-              if (parsed.fromName) setSmtpFromName(parsed.fromName);
-              if (parsed.secure)   setSmtpSecure(parsed.secure);
-            }
-          } catch {}
-        });
-      }
-    } catch (e) {
-      // Table may not exist yet — use defaults
-    } finally {
-      setLoading(false);
-    }
+      const result = await api.get<{settings: SystemSetting[]}>('/api/v1/system-settings?keys=allowed_ip_subnets,allowed_origins,smtp_config');
+      (result.settings || []).forEach((row: any) => {
+        const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+        if (row.key === 'allowed_ip_subnets') setIpSubnets(Array.isArray(parsed) ? parsed : []);
+        if (row.key === 'allowed_origins') setOrigins(Array.isArray(parsed) ? parsed : []);
+        if (row.key === 'smtp_config') {
+          if (parsed?.host) setSmtpHost(parsed.host);
+          if (parsed?.port) setSmtpPort(String(parsed.port));
+          if (parsed?.user) setSmtpUser(parsed.user);
+          if (parsed?.pass) setSmtpPass(parsed.pass);
+          if (parsed?.from) setSmtpFrom(parsed.from);
+          if (parsed?.fromName) setSmtpFromName(parsed.fromName);
+          if (parsed?.secure) setSmtpSecure(parsed.secure);
+        }
+      });
+    } catch (e) { console.error('[SystemSettings] load failed', e); }
+    finally { setLoading(false); }
   }, []);
-
-  useEffect(() => { loadSettings(); }, [loadSettings]);
-
-  const saveSetting = async (key: string, value: any): Promise<{ ok: boolean; error?: string }> => {
-    const strValue = JSON.stringify(value);
-    const meta = {
-      updated_by: currentUser?.name || 'System',
-      updated_at: new Date().toISOString(),
-    };
-
-    // Step 1: try UPDATE (no constraint needed)
-    const { error: updErr, data: updData } = await supabase
-      .from('system_settings')
-      .update({ value: strValue, ...meta })
-      .eq('key', key)
-      .select('key');
-
-    if (!updErr && updData && updData.length > 0) return { ok: true };
-
-    // Step 2: row doesn't exist — INSERT
-    const { error: insErr } = await supabase
-      .from('system_settings')
-      .insert({ key, value: strValue, ...meta });
-
-    if (!insErr) return { ok: true };
-
-    // Both failed — surface actual error message
-    return { ok: false, error: insErr.message };
-  };
-
   const handleSaveSection = async (key: string, value: any, label: string) => {
     if (!canEdit) return;
     setSaving(true);
