@@ -66,7 +66,7 @@ const DateInput: React.FC<{
 }> = ({ value, onChange, className = '' }) => {
   const isoToDisplay = (iso?: string | null) => {
     if (typeof iso !== 'string' || !iso) return '';
-    const [y, m, d] = iso.split('-');
+    const [y, m, d] = String(iso ?? '').split('-');
     if (!y || !m || !d) return iso; // already display format or partial
     return `${d}/${m}/${y}`;
   };
@@ -553,7 +553,7 @@ const CalendarTabPanel: React.FC<{
   const breakPairs = bStarts.map((bs: any, i: number) => ({ start: bs, end: bEnds[i] || null }));
   const totalBreakMs = breakPairs.reduce((sum: number, { start, end }: any) => end ? sum + (new Date(end.timestamp).getTime() - new Date(start.timestamp).getTime()) : sum, 0);
   const totalWorkMs = ci && co ? (new Date(co.timestamp).getTime() - new Date(ci.timestamp).getTime()) - totalBreakMs : null;
-  const dateParts = selectedDate ? selectedDate.split('-') : ['', '', ''];
+  const dateParts = String(selectedDate ?? '').split('-');
 
   return (
     <div className="space-y-3">
