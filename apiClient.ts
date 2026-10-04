@@ -1,4 +1,9 @@
 const API_BASE = (import.meta.env.VITE_HRM_API_URL || '').replace(/\/$/, '');
+const normalizePath = (path: string): string => {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  if (API_BASE.endsWith('/api/v1') && p.startsWith('/api/v1/')) return p.slice('/api/v1'.length);
+  return p;
+};
 
 export class ApiError extends Error {
   status: number;
@@ -24,7 +29,7 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE}${normalizePath(path)}`, {
     ...options,
     headers,
     credentials: 'include',
