@@ -961,6 +961,9 @@ export const HRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const log = { id: genId('LOG'), timestamp: new Date().toISOString(), user_id: user.id, user_name: user.name, action: 'USER_LOGIN', category: 'AUTH' as const, details: user.name + ' (' + user.role + ') logged in.', severity: 'LOW' as const, metadata: null };
       setActivityLogs(prev => [mapLog(log), ...prev]);
       await loadNotificationsForUser(user.id);
+      // loadData runs once at provider startup, before a freshly logged-in
+      // user has an auth token. Refresh the protected datasets after login.
+      await loadData();
       return true;
     } catch (e) {
       recordFailedAttempt(key);
