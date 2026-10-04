@@ -72,7 +72,7 @@ filesRouter.get('/download/:id',requireAuth,async(req,res,next)=>{
     const row=q.rows[0]; if(!row) return res.status(404).json({error:'File not found'});
     if(row.owner_id!==req.auth.employeeId){
       if(row.conversation_id){
-        const m=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',[row.conversation_id,req.auth.employeeId]);
+        const m=await db.query('SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND employee_id=$2',[row.conversation_id,req.auth.employeeId]);
         if(!m.rowCount) return res.status(403).json({error:'Permission denied'});
       } else if(!['DEVELOPER','ADMIN','CO_ADMIN','HR','MANAGER'].includes(req.auth.role)) return res.status(403).json({error:'Permission denied'});
     }
