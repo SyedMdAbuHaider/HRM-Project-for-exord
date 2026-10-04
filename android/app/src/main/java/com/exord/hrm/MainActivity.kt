@@ -45,7 +45,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable fun ExordApp(app:Application){
- val vm:HrmViewModel=viewModel(factory=HrmViewModel.factory(app))
+ val vm:HrmViewModel=remember(app){HrmViewModel(app)}
  val s by vm.state.collectAsState()
  MaterialTheme(colorScheme=darkColorScheme(primary=Red,background=Color(0xFF020617),surface=Color(0xFF0F172A),onBackground=Color.White,onSurface=Color.White)){Surface(Modifier.fillMaxSize(),color=Color(0xFF020617)){if(s.loggedIn){if(s.mustChangePassword)ForcePassword(vm,s.error)else Shell(vm,s.name,s.role,app)}else Login(vm,s.loading,s.error)}}
 }
