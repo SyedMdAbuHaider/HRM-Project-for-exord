@@ -1,4 +1,7 @@
 const API_BASE=(import.meta.env.VITE_HRM_API_URL||'').replace(/\/$/,'');
+// The API base may be configured as either the origin or /api/v1. Normalize it
+// so legacy Supabase-style data calls never become /api/v1/api/v1/data/*.
+const DATA_BASE=API_BASE.endsWith('/api/v1') ? API_BASE : `${API_BASE}/api/v1`;
 class Builder {
   table:string; method:'GET'|'POST'|'PATCH'|'DELETE'='GET'; fields='*'; filters:[string,string,string][]=[]; orderBy?:string; orderDesc=false; limitN?:number; body:any; onConflict?:string; singleMode:'none'|'single'|'maybe'='none';
   constructor(table:string){this.table=table;}
@@ -26,7 +29,7 @@ class Builder {
     if(this.method==='POST'&&this.onConflict)q.set('onConflict',this.onConflict);
     if(this.method==='PATCH'||this.method==='DELETE'){for(const [op,c,v] of this.filters)q.set(op+'['+c+']',v);}
     const token=localStorage.getItem('exord_auth_token');const headers:any={'Accept':'application/json'};if(token)headers.Authorization='Bearer '+token;if(this.method==='POST'||this.method==='PATCH')headers['Content-Type']='application/json';
-    const r=await fetch(API_BASE+'/api/v1/data/'+encodeURIComponent(this.table)+(q.toString()?'?'+q.toString():''),{method:this.method,headers,body:this.body===undefined?undefined:JSON.stringify(this.body)});
+    const r=await fetch(DATA_BASE+'/data/'+encodeURIComponent(this.table)+(q.toString()?'?'+q.toString():''),{method:this.method,headers,body:this.body===undefined?undefined:JSON.stringify(this.body)});
     const json=await r.json().catch(()=>({}));if(!r.ok)return {data:null,error:{message:json.error||('HTTP '+r.status),status:r.status}};
     let data:any=json.data??null;if(this.singleMode!=='none'){if(this.singleMode==='single'&&Array.isArray(data)&&!data.length)return {data:null,error:{message:'No rows found',status:404}};data=Array.isArray(data)?(data[0]??null):data;}return {data,error:json.error??null};
   }
