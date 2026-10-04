@@ -47,10 +47,10 @@ const ActivityLogView: React.FC = () => {
       const matchCat = categoryFilter === 'ALL' || log.category === categoryFilter;
       const matchSev = severityFilter === 'ALL' || log.severity === severityFilter;
       const matchSearch = !search ||
-        log.userName.toLowerCase().includes(search.toLowerCase()) ||
-        log.action.toLowerCase().includes(search.toLowerCase()) ||
-        log.details.toLowerCase().includes(search.toLowerCase()) ||
-        log.userId.toLowerCase().includes(search.toLowerCase());
+        (log.userName || 'System').toLowerCase().includes(search.toLowerCase()) ||
+        (log.action || 'UNKNOWN_ACTION').toLowerCase().includes(search.toLowerCase()) ||
+        (log.details || '').toLowerCase().includes(search.toLowerCase()) ||
+        (log.userId || 'system').toLowerCase().includes(search.toLowerCase());
       return matchCat && matchSev && matchSearch;
     });
   }, [activityLogs, categoryFilter, severityFilter, search]);
@@ -227,7 +227,7 @@ const ActivityLogView: React.FC = () => {
               )}
               {paginated.map(log => {
                 const cat = CATEGORY_CONFIG[log.category] || CATEGORY_CONFIG.SYSTEM;
-                const sev = SEVERITY_CONFIG[log.severity];
+                const sev = SEVERITY_CONFIG[log.severity] || SEVERITY_CONFIG.LOW;
                 const isExpanded = expandedId === log.id;
 
                 return (
