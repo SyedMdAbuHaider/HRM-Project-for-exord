@@ -64,8 +64,8 @@ const DateInput: React.FC<{
   onChange: (iso: string) => void;
   className?: string;
 }> = ({ value, onChange, className = '' }) => {
-  const isoToDisplay = (iso: string) => {
-    if (!iso) return '';
+  const isoToDisplay = (iso?: string | null) => {
+    if (typeof iso !== 'string' || !iso) return '';
     const [y, m, d] = iso.split('-');
     if (!y || !m || !d) return iso; // already display format or partial
     return `${d}/${m}/${y}`;
@@ -826,7 +826,7 @@ const EmployeePortal: React.FC = () => {
 
   const TABS = [
     { id: 'portal'   as const, label: t('attendance'),                                      icon: Crosshair },
-    { id: 'team'     as const, label: t('live_workforce').split('—')[0].trim(),              icon: Users },
+    { id: 'team'     as const, label: String(t('live_workforce') || 'Live Workforce').split('—')[0].trim(), icon: Users },
     { id: 'calendar' as const, label: 'Calendar',                                            icon: CalendarDays },
     { id: 'inbox'    as const, label: t('inbox'),                                            icon: Bell },
     { id: 'salary'   as const, label: t('payslip'),                                          icon: DollarSign },
